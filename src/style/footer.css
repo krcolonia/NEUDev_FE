@@ -1,0 +1,12 @@
+.caption{
+    padding-top: 30px;
+    font-size: small;
+    font-weight: bold;
+}
+
+.border{
+    display: flex;
+    align-self: center;
+    justify-self: center;
+    width: 80%;
+}

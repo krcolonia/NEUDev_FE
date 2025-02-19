@@ -1,0 +1,242 @@
+.profile{
+    padding: 20px;
+    background-color: #CCCFDA;
+    font-family: 'Poppins', sans-serif;
+    height: 100vh;
+    min-height: fit-content;
+}
+
+.cover-container{
+    height: 300px;
+    /* background-image: url('/src/assets/univ.png'); */
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    padding: 20px;
+    box-sizing: border-box;
+    background-color: rgba(67, 67, 67, 0.5);
+    background-blend-mode: multiply;
+}
+
+.cover-container .btn{
+    font-weight: bold;
+    background-color: #F6F6E9;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+    border-radius: 20px;
+    padding-left: 20px;
+}
+
+.cover-container .btn:hover{
+    background-color: #c8c8b7;
+    transform: translateY(-2px);
+}
+
+.cover-container i{
+    padding-left: 5px;
+}
+
+.modal{
+    font-family: 'Poppins', sans-serif;
+}
+
+.modal-profile .modal-header{
+    font-size: larger;
+    color: #ffffff;
+    font-weight: bolder;
+    background-color: #C79E8E;
+}
+
+.modal-profile .modal-body{
+    color: #2C292A;
+    background-color: #fdf8f6;
+}
+
+.edit-button{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+}
+
+.edit-button button{
+    margin-left: auto;
+    border: none;
+    background-color: transparent;
+    color: rgb(209, 102, 48);
+    cursor: pointer;
+}
+
+.upload-label{
+    cursor: pointer;
+}
+
+.edit-button button:hover{
+    background-color: transparent;
+    color: rgb(220, 141, 102);
+    border-radius: 5px;
+    transition: all 0.3s ease-in-out;
+}
+
+.edit-info{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.edit-info img{
+    width: 50%;
+    height: auto;
+}
+
+.edit-info p{
+    margin: 0;
+    color: #454445;
+}
+
+.custom-modal-edit .modal-dialog{
+    height: 100vh;
+}
+
+.custom-modal-edit .modal-content{
+    height: 100%;
+}
+
+.body-details label{
+    margin-top: 20px;
+}
+
+.custom-modal-edit .custom-modal-footer{
+    background-color: #C79E8E;
+    
+}
+
+.custom-modal-edit .custom-modal-footer button{
+    background-color: #ff7918;
+    font-weight: bold;
+    border: none;
+    border-radius: 20px;
+    padding-inline: 20px;
+}
+
+.profile-picture-container {
+    background-color: rgb(45, 45, 45);
+    /* background-image: url('/src/assets/angelica.png'); */
+    background-size: cover;
+    background-position: center;
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    margin-top: -150px;
+    overflow: hidden;
+}
+
+.info-container{
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding-bottom: 40px;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.info-container .name{
+    font-size: xx-large;
+    font-weight: bold;
+    color: #2C292A;
+}
+
+.info-container .student-no{
+    font-size: medium;
+    margin-top: -20px;
+    padding-bottom: 20px;
+    color: #7e7e7e;
+}
+
+.details{
+    margin-bottom: 20px;
+}
+
+.details p{
+    font-size: medium;
+    margin-top: -15px;
+    color: #454445;
+}
+
+.performance-container{
+    background-color: #fffef0;
+    border-radius: 10px;
+    display: block;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+}
+
+.performance-content .title{
+    font-size: 30px;
+    font-weight: bolder;
+    padding: 30px;
+    color: #2C292A;
+}
+
+.border{
+    display: flex;
+    align-self: center;
+    justify-self: center;
+    width: 94%;
+    margin-top: -40px;
+    margin-bottom: 30px;
+}
+
+.graph{
+    padding-top: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+}
+
+.linear img{
+    width: 100%;
+    height: auto;
+}
+
+.bar img{
+    width: 70%;
+    height: auto;
+    display: flex;
+    margin: 0 auto;
+}
+
+.analysis h4{
+    text-align: center;
+    padding-top: 40px;
+    font-weight: bold;
+}
+
+.analysis h6{
+    padding-left: 50px;
+    padding-top: 30px;
+    font-weight: bold;
+}
+
+.analysis p{
+    padding-inline: 50px;
+    font-size: 15px;
+    text-align: justify;
+}
+
+.history-content .title{
+    font-size: 30px;
+    font-weight: bolder;
+    padding: 30px;
+    color: #2C292A;
+}

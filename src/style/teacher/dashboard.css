@@ -1,0 +1,99 @@
+.classes-container .create-class{
+    width: 70%;
+    border: 2px dashed #A7AAB6;
+    border-radius: 12px; 
+    font-size: 16px;
+    color: #A7AAB6;
+}
+
+.classes-container .create-class:hover{
+    width: 70%;
+    border: 2px dashed #72747d;
+    border-radius: 12px; 
+    font-size: 16px;
+    color: #72747d;
+}
+
+/* Create New Class styles */
+
+/* Modal Styling */
+.modal-create-class .modal-content {
+    border-radius: 20px !important; /* Fully rounded */
+    overflow: hidden; /* Ensures child elements don't override the radius */
+}
+
+/* Modal Header */
+.modal-create-class .modal-header {
+    background-color: #F5DAD0; /* Light peach background */
+    color: #B84C20; /* Dark brown text */
+    font-weight: bold;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-bottom: 2px solid #B84C20; /* Bottom border for separation */
+}
+
+/* Modal Title */
+.modal-create-class .modal-title {
+    font-weight: bold;
+    font-size: 20px;
+}
+
+/* Close Button */
+.modal-create-class .modal-header .btn-close {
+    filter: invert(25%);
+}
+
+/* Modal Body */
+.modal-create-class .modal-body {
+    background-color: #FFF5F1; /* Light pink background */
+    padding: 20px;
+}
+
+/* Form Input Fields */
+.modal-create-class .form-control {
+    border-radius: 10px;
+    border: 2px solid #C4907B; /* Light brown border */
+    padding: 10px;
+    font-size: 14px;
+}
+
+.modal-create-class .form-control:focus {
+    border-color: #B84C20; /* Highlight border on focus */
+    box-shadow: 0 0 5px rgba(184, 76, 32, 0.5);
+}
+
+/* Select Dropdown */
+.modal-create-class select.form-control {
+    background-color: white;
+    cursor: pointer;
+}
+
+/* Create Button */
+.modal-create-class .btn-primary {
+    background-color: #84C776; /* Soft green */
+    border: none;
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-weight: bold;
+    transition: background 0.3s ease-in-out;
+}
+
+.modal-create-class .btn-primary:hover {
+    background-color: #6aaf5c; /* Slightly darker green */
+}
+
+/* Modal Footer */
+.modal-create-class .modal-footer {
+    background-color: #FFF5F1;
+    border-top: 2px solid #C4907B;
+    padding: 15px;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+}
+
+/* Responsive Fix */
+@media (max-width: 768px) {
+    .modal-create-class .modal-dialog {
+        max-width: 90%;
+    }
+}

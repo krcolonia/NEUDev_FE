@@ -1,0 +1,255 @@
+.dashboard {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Poppins', sans-serif;
+    background-color: #f0f0f1;
+}
+
+.sidebar {
+    width: 0;
+    background-color: #fffaf8;
+    border-right: 1px solid #ddd;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    transition: width 0.3s ease;
+    overflow: hidden;
+}
+
+.sidebar.open {
+    width: 200px;
+    transition: margin-left 0.3s ease;
+}
+
+.sidebar-content{
+    margin-top: 90px;
+}
+
+.sidebar .nav-item:not(.active):hover {
+    color: #B84C20;
+    background-color: #f8ebe8;
+    transition: ease-in 0.3s;
+}
+
+.sidebar .nav-link {
+    color: #C4907B;
+    font-size: 16px;
+    text-decoration: none;
+}
+
+.sidebar .sidebar-icon{
+    margin-inline: 3px;
+    font-size: 17px;
+    color: #B84C20;
+}
+
+.sidebar .nav-item.active {
+    color: #B84C20;
+    background-color: #F5DAD0;
+    border-left: 7px solid #B84C20;
+}
+
+.sidebar .nav-item.active:hover {
+    background-color: #F5DAD0;
+    color: #B84C20;
+    border-left: 7px solid #B84C20;
+}
+
+.sidebar .nav-item .nav-link {
+    color: #C4907B;
+}
+
+.sidebar .nav-item.active .nav-link {
+    color: #B84C20;
+}
+
+.navbar-top {
+    padding: 8px 0;
+    border-bottom: 1px solid #ddd;
+    background-color: #FFF5F1;
+    box-shadow: 0 3px 4px rgba(89, 89, 89, 0.244);
+}
+
+.navbar-top .toggle-btn{
+    font-size: 20px;
+    font-weight: bolder;
+    color: #B84C20;
+    border: none;
+    margin-left: 10px;
+}
+
+.navbar-top .toggle-btn:hover{
+    color: #B84C20;
+}
+
+.dashboard-navbar {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    gap: 15px;
+    margin-right: 10px;
+}
+
+.ping {
+    color: #B84C20;
+    font-size: smaller;
+}
+
+.dashboard-navbar .bi{
+    color: #B84C20;
+}
+
+.student-badge {
+    background-color: #84C776;
+    color: #FFF5F1;
+    padding: 7px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+}
+
+.dashboard-navbar .dropdown-toggle{
+    border: none;
+    font-size: 1px;
+}
+
+.profile-dropdown {
+    display: flex;
+    align-items: center;
+    border: none;
+}
+
+.profile-image {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit:fill;
+}
+
+.dashboard-navbar .dropdown-item {
+    color: #C4907B;
+    font-size: smaller;
+}
+  
+.dashboard-navbar .dropdown-item:hover {
+    background-color: #F5DAD0;
+    color: #B84C20;
+    border-left: 5px solid #B84C20;
+}
+
+.dashboard-navbar .dropdown-menu {
+    background-color: #FFF5F1;
+    width: 180px;
+}
+
+.dashboard-content {
+    display: flex;
+    justify-content: start;
+    flex-direction: column;
+    margin-top: 60px;
+    margin-left: 200px;
+    padding: 30px;
+    transition: margin-left 0.3s ease;
+}
+
+.sidebar.closed + .dashboard-content {
+    margin-left: 0;
+    width: 100%;
+    transition: margin-left 0.3s ease;
+}
+
+.dashboard-content h5{
+    font-weight: 600;
+    color: #B84C20;
+    margin-bottom: 20px;
+}
+
+.classes-container{
+    display: flex;
+    flex-direction: row;
+    gap: 30px;
+    width: 600px;
+}
+
+.class-card{
+    width: 500px;
+    border-radius: 30px !important;
+    overflow: hidden;
+    background: transparent !important;
+    border: none !important;
+}
+
+.class-card img{
+    width: 100%;
+    height: 130px;
+    object-fit: cover;
+    filter: contrast(50%);
+    transition: filter 0.3s ease-in-out;
+}
+
+.class-card .card-text{
+    color: #B84C20;
+    font-size: smaller;
+    padding-left: 10px;
+    cursor: pointer;
+}
+
+.class-card .card-text a{
+    text-decoration: none;
+    color: #B84C20;
+}
+
+.class-card .card-text a:hover{
+    color: #b84b20bc;
+}
+
+.class-card .card-body{
+    background-color: #CCCFDA;
+}
+
+.classes-container .join-class{
+    width: 70%;
+    border: 2px dashed #A7AAB6;
+    border-radius: 12px; 
+    font-size: 16px;
+    color: #A7AAB6;
+}
+
+.classes-container .join-class:hover{
+    width: 70%;
+    border: 2px dashed #72747d;
+    border-radius: 12px; 
+    font-size: 16px;
+    color: #72747d;
+}
+
+.modal-class-body{
+    font-size: large;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+}
+
+.modal-class-body p{
+    margin-top: 30px;
+    color: #B84C20;
+}
+
+.modal-class-body input{
+    width: 70%;
+}
+
+.modal-class-body button{
+    margin-block: 30px;
+    font-weight: 600;
+    background-color: #84C776;
+    border: none;
+    border-radius: 20px;
+    padding-inline: 30px;
+}
+
+.modal-class-body button:hover{
+    background-color: #83c77692;
+}

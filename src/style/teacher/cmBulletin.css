@@ -1,0 +1,30 @@
+.modal-post-announcement .modal-header{
+    color: #B84C20;
+    background-color: #F5DAD0;
+}
+
+.modal-post-announcement .modal-header h3{
+    font-weight: 700;
+}
+
+.modal-post-announcement .modal-body{
+    background-color: #FFF5F1;
+}
+
+.modal-post-announcement .modal-footer{
+    background-color: #FFF5F1;
+    border-top: 2px solid #9196A1;
+    display: flex;
+    justify-content: center;
+}
+
+.modal-post-announcement .modal-footer button{
+    background-color: #76C7C5;
+    border: none;
+    border-radius: 20px;
+    padding-inline: 50px;
+}
+
+.modal-post-announcement .modal-footer button:hover{
+    background-color: #76c7c6b3;
+}

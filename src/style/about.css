@@ -1,0 +1,95 @@
+.header{
+    font-weight: bold;
+    font-size: 2.3rem;
+    text-align: center;
+    color: #F6F6E9;
+}
+
+.description{
+    padding-inline: 200px;
+    color: #9D9D9D;
+    font-size: small;
+    text-align: center;
+}
+
+.team-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 30px;
+}
+
+.team-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 50px;
+    padding-bottom: 30px;
+    overflow: hidden;
+}
+
+.team-card {
+    background-color: #333333 !important;
+    border: none;
+    border-radius: 20px !important;
+    position: relative;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    width: 260px;
+    height: auto;
+}
+
+.team-card img {
+    height: 210px;
+    width: 100%;
+    object-fit: contain;
+}
+
+.team-card .card-name {
+    background-color: #ff5722; 
+    text-align: center;
+    color: #F6F6E9;
+    font-weight: bold;
+    font-size: medium;
+    padding: 2px;
+    margin-top: -6px;
+    border-radius: 5px;
+    width: 104%;
+    align-self: center;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.team-card .role{
+    color: #CBCBCB;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.team-card .card-text{
+    color: #9D9D9D;
+    font-size: small;
+    text-align: justify;
+    margin-top: -8px;
+}
+
+.team-card .social-links {
+    display: flex;
+    justify-content: center; 
+    gap: 10px;
+    margin-top: -10px; 
+}
+
+.team-card .social-links a {
+    color: #ff5722;
+    text-decoration: none;
+    margin: 0 5px;
+    font-size: 16px;
+    transition: ease-in-out 0.3s;
+}
+
+.team-card .social-links a:hover {
+    box-shadow: 0 2px 5px rgb(221, 207, 172);
+}
+
+.team-card .social-links img {
+    height: 25px;
+}

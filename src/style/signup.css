@@ -1,0 +1,22 @@
+.form-group{
+    margin-top: 15px;
+}
+
+.form-container{
+    width: 60%;
+}
+
+.signup-form button{
+    margin-top: 20px;
+}
+
+.signup-form p{
+    margin-top: 10px;
+    font-size: smaller;
+    text-align: center;
+    color: #828282;
+}
+
+.signup-form a{
+    color: #ED5931;
+}
