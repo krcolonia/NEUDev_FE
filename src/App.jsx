@@ -6,6 +6,7 @@ import { SignInComponent } from "./components/SignInComponent";
 import { SignUpComponent } from "./components/SignUpComponent"; // New selection component
 import { SignUpStudent } from "./components/SignUpStudent"; // Student-specific signup
 import { SignUpTeacher } from "./components/SignUpTeacher"; // Teacher-specific signup
+import NotFound from "./components/NotFound"; // ✅ Import the 404 NotFound component
 
 // Student Components
 import { PlaygroundComponent } from "./components/student/PlaygroundComponent";
@@ -63,6 +64,9 @@ function App() {
                     <Route path="/tchr-coding-assessment" element={<TCHRCodingAssessmentComponent />} />
                     <Route path="/create-new-activity" element={<CreateActivityComponent />} />
                 </Route>
+
+                {/* 🔥 Fallback route for 404 */}
+                <Route path="*" element={<NotFound />} />
 
             </Routes>
         </Router>
