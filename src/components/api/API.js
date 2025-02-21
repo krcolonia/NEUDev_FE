@@ -1,4 +1,7 @@
-const API_LINK = "http://127.0.0.1:8000/api"; // Base API URL for backend
+const API_LINK = import.meta.env.VITE_API_URL;
+// Base API URL for backend
+
+console.log("🔍 API_URL:", API_LINK);
 
 //////////////////////////////////////////
 // LOGIN/SIGNUP/LOGOUT FUNCTIONS
@@ -276,7 +279,7 @@ async function getAllClasses() {
     return await safeFetch(`${API_LINK}/class`, {
         method: "GET",
         headers: { "Authorization": `Bearer ${token}` }
-    });
+    }).catch(error => ({ error: "Failed to fetch classes", details: error }));
 }
 
 // Function to create a new class (Only for teachers)
@@ -390,13 +393,13 @@ async function getActivityDetails(actID) {
 async function submitActivity(actID, submissionFile) {
     const token = sessionStorage.getItem("access_token");
 
+    const formData = new FormData();
+    formData.append("submissionFile", submissionFile); 
+
     const response = await fetch(`${API_LINK}/activities/${actID}/submit`, {
         method: "POST",
-        body: JSON.stringify({ submissionFile }),
-        headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        }
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData // No `Content-Type`, browser sets automatically
     });
 
     const data = await response.json();
