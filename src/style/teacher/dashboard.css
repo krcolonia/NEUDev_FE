@@ -1,22 +1,49 @@
-.classes-container .create-class{
-    width: 70%;
-    border: 2px dashed #A7AAB6;
-    border-radius: 12px; 
-    font-size: 16px;
-    color: #A7AAB6;
+/* 🎯 Class Container Layout (Forcing Items to Stay in a Row) */
+.classes-container {
+    display: flex; /* ✅ Use flexbox for a row layout */
+    flex-wrap: wrap; /* ✅ Allows wrapping when needed */
+    gap: 20px; /* Space between cards */
+    align-items: stretch; /* ✅ Ensures all cards have the same height */
+    padding: 20px;
 }
 
-.classes-container .create-class:hover{
-    width: 70%;
-    border: 2px dashed #72747d;
-    border-radius: 12px; 
+/* 🎯 Individual Class Card */
+.class-card {
+    flex: 0 0 250px; /* ✅ Ensures cards don’t shrink */
+    max-width: 280px;
+    min-height: 180px;
+    padding: 15px;
+    border-radius: 12px;
+    background: white;
+    transition: transform 0.2s ease-in-out;
+}
+
+.class-card:hover {
+    transform: scale(1.03);
+}
+
+/* 🎯 Fix the "Create a Class" Button */
+.classes-container .create-class {
+    flex: 0 0 250px; /* ✅ Ensures button doesn't shrink */
+    height: 180px;
+    border: 2px dashed #A7AAB6;
+    border-radius: 12px;
     font-size: 16px;
+    color: #A7AAB6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: border-color 0.3s ease-in-out, color 0.3s ease-in-out;
+}
+
+.classes-container .create-class:hover {
+    border-color: #72747d;
     color: #72747d;
 }
 
-/* Create New Class styles */
 
-/* Modal Styling */
+/* 🎯 Modal Styling */
 .modal-create-class .modal-content {
     border-radius: 20px !important; /* Fully rounded */
     overflow: hidden; /* Ensures child elements don't override the radius */
@@ -24,12 +51,12 @@
 
 /* Modal Header */
 .modal-create-class .modal-header {
-    background-color: #F5DAD0; /* Light peach background */
-    color: #B84C20; /* Dark brown text */
+    background-color: #F5DAD0;
+    color: #B84C20;
     font-weight: bold;
     border-top-left-radius: 20px;
     border-top-right-radius: 20px;
-    border-bottom: 2px solid #B84C20; /* Bottom border for separation */
+    border-bottom: 2px solid #B84C20;
 }
 
 /* Modal Title */
@@ -45,20 +72,20 @@
 
 /* Modal Body */
 .modal-create-class .modal-body {
-    background-color: #FFF5F1; /* Light pink background */
+    background-color: #FFF5F1;
     padding: 20px;
 }
 
 /* Form Input Fields */
 .modal-create-class .form-control {
     border-radius: 10px;
-    border: 2px solid #C4907B; /* Light brown border */
+    border: 2px solid #C4907B;
     padding: 10px;
     font-size: 14px;
 }
 
 .modal-create-class .form-control:focus {
-    border-color: #B84C20; /* Highlight border on focus */
+    border-color: #B84C20;
     box-shadow: 0 0 5px rgba(184, 76, 32, 0.5);
 }
 
@@ -70,7 +97,7 @@
 
 /* Create Button */
 .modal-create-class .btn-primary {
-    background-color: #84C776; /* Soft green */
+    background-color: #84C776;
     border: none;
     border-radius: 20px;
     padding: 10px 20px;
@@ -79,7 +106,7 @@
 }
 
 .modal-create-class .btn-primary:hover {
-    background-color: #6aaf5c; /* Slightly darker green */
+    background-color: #6aaf5c;
 }
 
 /* Modal Footer */
@@ -91,8 +118,12 @@
     border-bottom-right-radius: 20px;
 }
 
-/* Responsive Fix */
+/* 🎯 Responsive Fixes */
 @media (max-width: 768px) {
+    .classes-container {
+        justify-content: center;
+    }
+
     .modal-create-class .modal-dialog {
         max-width: 90%;
     }

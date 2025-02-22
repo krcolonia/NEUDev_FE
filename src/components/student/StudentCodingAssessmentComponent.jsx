@@ -1,16 +1,16 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useParams  } from 'react-router-dom';
 import { useState } from 'react';
 import { Navbar, Row, Col, Button, Dropdown, DropdownButton, Tabs, Tab, Modal} from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCirclePlay, faCheck } from '@fortawesome/free-solid-svg-icons';
 import '/src/style/student/assessment.css'
 
-export const CodingAssessmentComponent = () => {
-
+export const StudentCodingAssessmentComponent = () => {
+    const { classID, actID } = useParams(); // ✅ Get classID and actID from URL
     const navigate_class = useNavigate();
     const handleClassClick = () => {
-        navigate_class('/class');
+        navigate_class(`/student/class/activity/${actID}/items`);
     };
 
     const [items] = useState([

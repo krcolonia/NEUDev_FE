@@ -18,6 +18,40 @@ body {
   font-family: Poppins, sans-serif;
 }
 
+/* Highlight selected row */
+.item-table tbody tr.selected {
+  background-color: #f4e8d8; /* Light brownish color */
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* "Try Answering" button */
+.try-answer-button, .answer-item-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #a34923;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.5; /* Default faded */
+  transition: opacity 0.3s ease-in-out;
+}
+
+.try-answer-button.active, .answer-item-btn.active {
+  opacity: 1; /* Fully visible when question is selected */
+  pointer-events: all;
+}
+
+.try-answer-button.disabled, .answer-item-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .class-navbar-top {
   display: flex;
   align-items: center;

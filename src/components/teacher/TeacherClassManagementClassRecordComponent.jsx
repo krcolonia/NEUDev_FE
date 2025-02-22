@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Dropdown, Navbar, Tab, Tabs } from "react-bootstrap";
 import "../../style/teacher/leaderboard.css";
-import AMNavigationBarComponent from './AMNavigationBarComponent';
+import TeacherAMNavigationBarComponent from './TeacherCMNavigationBarComponent';
 
-const LeaderboardItem = ({ name, section, score, avatarUrl }) => {
+const LeaderboardItem = ({ name, section, score, rank, avatarUrl }) => {
   return (
     <tr>
       <td>
@@ -22,14 +22,11 @@ const LeaderboardItem = ({ name, section, score, avatarUrl }) => {
       <td>
         <div className="score-circle">{score}%</div>
       </td>
-      <td>
-        <div className="score-circle">{score}%</div>
-      </td>
     </tr>
   );
 };
 
-const Leaderboard = () => {
+const ClassRecord = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const API_URL = "https://your-api-endpoint.com/activity-items";
@@ -79,10 +76,10 @@ const mockStudents = [
 
   return (
     <div className="leaderboard-body">
-      <AMNavigationBarComponent/>
+      <TeacherAMNavigationBarComponent />
       <div className="leaderboard-container">
         <div className="leaderboard-header">
-          <h1 className="leaderboard-title">Leaderboard</h1>
+          <h1 className="leaderboard-title">All Students Enrolled</h1>
           {loading ? (
             <p>Loading students...</p>
           ) : (
@@ -92,7 +89,6 @@ const mockStudents = [
                   <th className="leaderboard-column-titles">Student Name</th>
                   <th className="leaderboard-column-titles">Year & Section</th>
                   <th className="leaderboard-column-titles">Average Score</th>
-                  <th className="leaderboard-column-titles">Rank</th>
                 </tr>
               </thead>
               <tbody className="leaderboard-students">
@@ -114,4 +110,5 @@ const mockStudents = [
   );
 };
 
-export default Leaderboard;
+
+export default ClassRecord;

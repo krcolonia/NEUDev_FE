@@ -2,8 +2,9 @@ import React from 'react'
 import { useState } from 'react';
 import '/src/style/student/bulletin.css'
 import { Button, Row, Col, Card, Modal } from 'react-bootstrap';
+import StudentCMNavigationBarComponent from './StudentCMNavigationBarComponent';
 
-export const BulletinComponent = () => {
+export const StudentBulletinComponent = () => {
 
   const [posts] = useState([
       { id: 1, title: 'Activity 3 Java Basic', dateCreated: '12 August 2025', timeCreated: '7:30pm', message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.' },
@@ -21,6 +22,7 @@ export const BulletinComponent = () => {
 
   return (
     <>
+      <StudentCMNavigationBarComponent />
       <div className='bulletin-content'>
         <div className='container-fluid bulletin-header'>
           <div className='bulletin-search'>
