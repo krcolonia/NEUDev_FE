@@ -4,9 +4,9 @@ import '/src/style/teacher/cmBulletin.css'
 import { Button, Row, Col, Card, Modal, Form } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBold, faItalic, faUnderline, faSuperscript, faAlignLeft, faAlignCenter, faAlignRight } from '@fortawesome/free-solid-svg-icons';
-import CMNavigationBarComponent from './CMNavigationBarComponent';
+import TeacherCMNavigationBarComponent from './TeacherCMNavigationBarComponent';
 
-export const CMBulletinComponent = () => {
+export const TeacherClassManagementBulletinComponent = () => {
 
   const [posts] = useState([
       { id: 1, title: 'Activity 3 Java Basic', dateCreated: '12 August 2025', timeCreated: '7:30pm', message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.' },
@@ -25,7 +25,7 @@ export const CMBulletinComponent = () => {
 
   return (
     <>
-    <CMNavigationBarComponent/>
+    <TeacherCMNavigationBarComponent/>
       <div className='bulletin-content'>
         <div className="create-new-activity-wrapper"></div> 
         <div className="create-new-activity-container">
