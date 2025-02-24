@@ -8,7 +8,7 @@ export const AboutComponent = () => {
         <p>About Us</p>
       </div>
       <div className='description'>
-        <p>We are TeamBa, a group of passionate developers—Hanna Condada, Angelica Mae Manliguez, Noriel Achero, Erikka Marielle Enaje, and Aeron Red Celajes—dedicated to advancing learning through our intelligent code assessment platform. NEUDev supports students and educators by providing accurate, real-time feedback and insights on coding proficiency, empowering the next generation of developers to hone their skills and achieve success.</p>
+        <p>We are NAME NAME NAME NG GROUP, a group of passionate developers—Hanna Condada, Angelica Mae Manliguez, Noriel Achero, Erikka Marielle Enaje, and Aeron Red Celajes—dedicated to advancing learning through our intelligent code assessment platform. NEUDev supports students and educators by providing accurate, real-time feedback and insights on coding proficiency, empowering the next generation of developers to hone their skills and achieve success.</p>
       </div>
 
       <div className='container-fluid team-container'>
