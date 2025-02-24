@@ -30,7 +30,7 @@ export const SignUpComponent = () => {
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-center mb-3">Sign Up to Hanori</h3>
+                    <h3 className="text-center mb-3">Sign Up to NEUDev</h3>
 
                     {/* Role Selection */}
                     <p className="text-center">Are you signing up as a...</p>
