@@ -8,14 +8,14 @@ export const AboutComponent = () => {
         <p>About Us</p>
       </div>
       <div className='description'>
-        <p>We are HANORI, a group of passionate developers—Hanna Condada, Angelica Mae Manliguez, Noriel Achero, and Erikka Marielle Enaje—dedicated to advancing learning through our intelligent code assessment platform. HANORI supports students and educators by providing accurate, real-time feedback and insights on coding proficiency, empowering the next generation of developers to hone their skills and achieve success.</p>
+        <p>We are TeamBa, a group of passionate developers—Hanna Condada, Angelica Mae Manliguez, Noriel Achero, Erikka Marielle Enaje, and Aeron Red Celajes—dedicated to advancing learning through our intelligent code assessment platform. NEUDev supports students and educators by providing accurate, real-time feedback and insights on coding proficiency, empowering the next generation of developers to hone their skills and achieve success.</p>
       </div>
 
       <div className='container-fluid team-container'>
         <div className='row team-row'>
           <div className='col-md-2'>
               <div className='card team-card'>
-                  <img src='/src/assets/hana.png' alt="Hannah Condada"/>
+                  <img src='/src/assets/hana2.png' alt="Hannah Condada"/>
                   <div className="card-name">HANNAH CONDADA</div>
                   <div className='card-body'>
                       <p className='role'>Lead UI/UX Design</p>
@@ -31,7 +31,7 @@ export const AboutComponent = () => {
 
           <div className='col-md-2'>
               <div className='card team-card'>
-                  <img src='/src/assets/angelica.png' alt="Angelica Mae Manliguez"/>
+                  <img src='/src/assets/angelica2.png' alt="Angelica Mae Manliguez"/>
                   <div className="card-name">ANGELICA MAE MANLIGUEZ</div>
                   <div className='card-body'>
                       <p className='role'>Lead Front-End Developer</p>
@@ -47,7 +47,7 @@ export const AboutComponent = () => {
 
           <div className='col-md-2'>
             <div className='card team-card'>
-              <img src='/src/assets/erikka.png' alt="Erikka"/>
+              <img src='/src/assets/erikka2.png' alt="Erikka"/>
               <div className="card-name">ERIKKA MARIELLE ENAJE</div>
               <div className='card-body'>
                 <p className="role">Lead QA & Asst. UI/UX Design</p>
@@ -63,10 +63,10 @@ export const AboutComponent = () => {
 
           <div className='col-md-2'>
               <div className='card team-card'>
-                  <img src='/src/assets/noy.png' alt="Noriel Achero"/>
+                  <img src='/src/assets/noy2.png' alt="Noriel Achero"/>
                   <div className="card-name">NORIEL ARCHERO</div>
                   <div className='card-body'>
-                      <p className='role'>Lead Back-End Developer</p>
+                      <p className='role'>Project Manager</p>
                       <p className='card-text'>
                           Noriel Archero is a 22-year-old Computer Science student at New Era University. You can connect to him on Linkedln and view her project on GitHub.
                       </p>
@@ -79,10 +79,10 @@ export const AboutComponent = () => {
           
           <div className='col-md-2'>
               <div className='card team-card'>
-                  <img src='/src/assets/aeron.png' alt="Noriel Achero"/>
+                  <img src='/src/assets/aeron2.png' alt="Noriel Achero"/>
                   <div className="card-name">AERON RED CELAJES</div>
                   <div className='card-body'>
-                      <p className='role'>Asst. Back-End Developer</p>
+                      <p className='role'>Lead Back-End Developer</p>
                       <p className='card-text'>
                           Aeron Red Celajes is a 22-year-old Computer Science student at New Era University. You can connect to him on Linkedln and view her project on GitHub.
                       </p>
