@@ -3,14 +3,28 @@ import { useNavigate } from 'react-router-dom';
 import { Row, Tabs, Col, Tab, Modal, Button, Form } from 'react-bootstrap';
 import TeacherCMNavigationBarComponent from './TeacherCMNavigationBarComponent';
 import "../../style/teacher/cmActivities.css"; 
-import { getClassActivities, editActivity, deleteActivity, getPresetQuestions, getItemTypes } from "../api/API"; 
+import { 
+  getClassActivities, 
+  editActivity, 
+  deleteActivity, 
+  getQuestions, 
+  getItemTypes,
+  getProgrammingLanguages
+} from "../api/API"; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCaretDown } from '@fortawesome/free-solid-svg-icons';
+
+// Mapping of known programming language IDs to names and images
+const programmingLanguageMap = {
+  1: { name: "Java", image: "/src/assets/java2.png" },
+  2: { name: "C#", image: "/src/assets/c.png" },
+  3: { name: "Python", image: "/src/assets/py.png" }
+};
 
 export const TeacherClassManagementComponent = () => {
   const navigate = useNavigate();
 
-  // Activity states
+  // -------------------- Activity States --------------------
   const [contentKey, setContentKey] = useState('ongoing');
   const [ongoingActivities, setOngoingActivities] = useState([]);
   const [completedActivities, setCompletedActivities] = useState([]);
@@ -28,16 +42,19 @@ export const TeacherClassManagementComponent = () => {
     difficulty: '',
     startDate: '',
     endDate: '',
-    progLangID: '',
+    // Removed single progLangID; we use many-to-many now.
     maxPoints: '',
     questions: ['', '', '']
   });
+
+  // For editing multiple programming languages
+  const [allProgrammingLanguages, setAllProgrammingLanguages] = useState([]);
+  const [editSelectedProgLangs, setEditSelectedProgLangs] = useState([]); // array of IDs
 
   // --- States for the Question Selection Modal ---
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(null);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
-  // For questions, we mimic the create activity’s item type and preset question logic:
   const [qSelectedItemType, setQSelectedItemType] = useState(null);
   const [qItemTypeName, setQItemTypeName] = useState('');
   const [qItemTypes, setQItemTypes] = useState([]);
@@ -50,9 +67,10 @@ export const TeacherClassManagementComponent = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Fetch question item types on component mount
+  // Fetch question item types and programming languages on mount
   useEffect(() => {
     fetchQItemTypes();
+    fetchAllProgrammingLanguages();
   }, []);
 
   // When the question item type changes, fetch its preset questions
@@ -62,14 +80,7 @@ export const TeacherClassManagementComponent = () => {
     }
   }, [qSelectedItemType]);
 
-  // Mapping of programming language IDs to names and images
-  const programmingLanguageMap = {
-    1: { name: "Java", image: "/src/assets/java2.png" },
-    2: { name: "C#", image: "/src/assets/c.png" },
-    3: { name: "Python", image: "/src/assets/py.png" }
-  };
-
-  // Fetch activities and sort based on time
+  // --------------- Fetching Activities ---------------
   const fetchActivities = async () => {
     try {
       const classID = sessionStorage.getItem("selectedClassID");
@@ -97,12 +108,25 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
-  // ----- Functions for Question Modal (like in Create Activity) -----
+  // --------------- Fetch All Programming Languages ---------------
+  const fetchAllProgrammingLanguages = async () => {
+    try {
+      const response = await getProgrammingLanguages();
+      if (!response.error && Array.isArray(response)) {
+        setAllProgrammingLanguages(response);
+      } else {
+        console.error("❌ Error fetching programming languages:", response.error);
+      }
+    } catch (error) {
+      console.error("❌ Error fetching programming languages:", error);
+    }
+  };
+
+  // --------------- Item Types + Questions for Question Modal ---------------
   const fetchQItemTypes = async () => {
     const response = await getItemTypes();
     if (!response.error && response.length > 0) {
       setQItemTypes(response);
-      // Set the default item type
       setQSelectedItemType(response[0].itemTypeID);
       setQItemTypeName(response[0].itemTypeName);
     } else {
@@ -111,7 +135,7 @@ export const TeacherClassManagementComponent = () => {
   };
 
   const fetchQPresetQuestions = async () => {
-    const response = await getPresetQuestions(qSelectedItemType);
+    const response = await getQuestions(qSelectedItemType);
     if (!response.error) {
       setQPresetQuestions(response);
     } else {
@@ -119,6 +143,7 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
+  // --------------- Question Modal Handlers ---------------
   const handleQuestionClick = (index) => {
     setSelectedQuestionIndex(index);
     setShowQuestionModal(true);
@@ -135,41 +160,56 @@ export const TeacherClassManagementComponent = () => {
   const handleSaveQuestion = () => {
     if (selectedQuestion !== null && selectedQuestionIndex !== null) {
       const updatedQuestions = [...editFormData.questions];
-  
       updatedQuestions[selectedQuestionIndex] = {
-        questionID: selectedQuestion.questionID, 
-        questionName: selectedQuestion.questionName, 
+        questionID: selectedQuestion.questionID,
+        questionName: selectedQuestion.questionName,
         itemTypeID: selectedQuestion.itemTypeID
       };
-  
-      console.log("Updated Questions Array:", updatedQuestions); // Debugging
-  
+      console.log("Updated Questions Array:", updatedQuestions);
       setEditFormData({ ...editFormData, questions: updatedQuestions });
       setSelectedQuestion(null);
       setShowQuestionModal(false);
     }
   };
-  
 
   const handleItemTypeSelect = (type) => {
     setQSelectedItemType(type.itemTypeID);
     setQItemTypeName(type.itemTypeName);
     setShowItemTypeDropdown(false);
   };
-  // ----- End Question Modal Functions -----
 
-  // When Edit is pressed, preload the selected activity’s data into the edit form
+  const handleRemoveQuestion = () => {
+    if (selectedQuestionIndex !== null) {
+      const updatedQuestions = [...(editFormData.questions || [])];
+      updatedQuestions[selectedQuestionIndex] = { questionID: null, questionName: "", itemTypeID: null };
+      setEditFormData({ ...editFormData, questions: updatedQuestions });
+      setSelectedQuestion(null);
+      setShowQuestionModal(false);
+    }
+  };
+
+  // --------------- Entering Edit Mode ---------------
+  const handleActivityClick = (activity) => {
+    if (editMode) {
+      setSelectedActivity(activity);
+    } else {
+      navigate(`/teacher/class/activity/${activity.actID}/items`);
+    }
+  };
+
+  const isSelected = (activity) => {
+    return editMode && selectedActivity?.actID === activity.actID;
+  };
+
   const handleEdit = () => {
     if (!selectedActivity) {
       alert("Choose an activity to edit or delete.");
       return;
     }
-  
-    console.log("Selected Activity Data:", selectedActivity); // Debugging
-    console.log("Selected Activity Questions:", selectedActivity.questions); // Debugging
-  
+    console.log("Selected Activity Data:", selectedActivity);
+    console.log("Selected Activity Questions:", selectedActivity.questions);
+
     let existingQuestions = [];
-  
     if (Array.isArray(selectedActivity.questions) && selectedActivity.questions.length > 0) {
       existingQuestions = selectedActivity.questions.map(q => ({
         questionID: q?.question?.questionID || null,
@@ -177,29 +217,27 @@ export const TeacherClassManagementComponent = () => {
         itemTypeID: q?.itemTypeID || null
       }));
     }
-  
-    console.log("Mapped Questions:", existingQuestions);
-  
     while (existingQuestions.length < 3) {
       existingQuestions.push({ questionID: null, questionName: "", itemTypeID: null });
     }
-  
+
     setEditFormData({
       actTitle: selectedActivity.actTitle || '',
       actDesc: selectedActivity.actDesc || '',
       difficulty: selectedActivity.difficulty || '',
       startDate: selectedActivity.startDate ? selectedActivity.startDate.slice(0, 16) : '',
       endDate: selectedActivity.endDate ? selectedActivity.endDate.slice(0, 16) : '',
-      progLangID: selectedActivity.progLangID ? selectedActivity.progLangID.toString() : '',
       maxPoints: selectedActivity.maxPoints ? selectedActivity.maxPoints.toString() : '',
       questions: existingQuestions
     });
-  
+    // Map existing programming language IDs from pivot table.
+    const existingLangIDs = (selectedActivity.programming_languages || []).map(lang => lang.progLangID);
+    console.log("Existing Programming Languages for Activity:", existingLangIDs);
+    setEditSelectedProgLangs(existingLangIDs);
     setShowEditModal(true);
   };
-  
 
-  // Delete selected activity
+  // --------------- Deleting Activities ---------------
   const handleDelete = async () => {
     if (!selectedActivity) {
       alert("Choose an activity to edit or delete.");
@@ -222,7 +260,6 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
-  // Delete all activities
   const handleDeleteAll = async () => {
     const confirmed = window.confirm("Are you sure you want to delete ALL activities?");
     if (confirmed) {
@@ -241,33 +278,46 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
-  // Submit the edit form with all updated fields
+  // --------------- Handling Multi-Language in Edit Form ---------------
+  const handleEditProgLangToggle = (langID) => {
+    if (editSelectedProgLangs.includes(langID)) {
+      setEditSelectedProgLangs(editSelectedProgLangs.filter(id => id !== langID));
+    } else {
+      setEditSelectedProgLangs([...editSelectedProgLangs, langID]);
+    }
+  };
+
+  const handleSelectAllLangsEdit = (checked) => {
+    if (checked) {
+      const allIDs = allProgrammingLanguages.map(lang => lang.progLangID);
+      setEditSelectedProgLangs(allIDs);
+    } else {
+      setEditSelectedProgLangs([]);
+    }
+  };
+
+  // --------------- Submitting Edit Form ---------------
   const handleEditSubmit = async (e) => {
     e.preventDefault();
-  
     const updatedActivity = {
       actTitle: editFormData.actTitle,
       actDesc: editFormData.actDesc,
       difficulty: editFormData.difficulty,
-      startDate: editFormData.startDate || selectedActivity.startDate, // Preserve startDate if not changed
+      startDate: editFormData.startDate || selectedActivity.startDate,
       endDate: editFormData.endDate,
-      progLangID: parseInt(editFormData.progLangID),
       maxPoints: parseInt(editFormData.maxPoints),
+      progLangIDs: editSelectedProgLangs,
       questions: editFormData.questions
-        .filter(q => q.questionName.trim() !== '') // Remove empty questions
+        .filter(q => q.questionName.trim() !== '')
         .map(q => ({
-          questionID: q.questionID,  
-          questionName: q.questionName,
+          questionID: q.questionID,
           itemTypeID: q.itemTypeID
         }))
     };
-  
-    console.log("Updating Activity with:", updatedActivity); // Debugging
-  
+    console.log("Updating Activity with:", updatedActivity);
     try {
       const response = await editActivity(selectedActivity.actID, updatedActivity);
       console.log("Edit Activity Response:", response);
-  
       if (!response.error) {
         alert("Activity edited successfully.");
         setShowEditModal(false);
@@ -286,23 +336,8 @@ export const TeacherClassManagementComponent = () => {
       console.error("Error editing activity:", err);
     }
   };
-  
-  
-  // When an activity is clicked, if in edit mode it becomes selected;
-  // otherwise, navigate normally.
-  const handleActivityClick = (activity) => {
-    if (editMode) {
-      setSelectedActivity(activity);
-    } else {
-      navigate(`/teacher/class/activity/${activity.actID}/items`);
-    }
-  };
 
-  // Helper to determine if an activity is the selected one in edit mode
-  const isSelected = (activity) => {
-    return editMode && selectedActivity?.actID === activity.actID;
-  };
-
+  // --------------- Rendering ---------------
   return (
     <>
       <TeacherCMNavigationBarComponent />
@@ -353,7 +388,6 @@ export const TeacherClassManagementComponent = () => {
                 <p>No ongoing activities found.</p>
               ) : (
                 ongoingActivities.map((activity) => {
-                  const language = programmingLanguageMap[activity.progLangID] || { name: "Unknown", image: "/src/assets/default.png" };
                   return (
                     <div 
                       key={`ongoing-${activity.actID}`} 
@@ -369,15 +403,32 @@ export const TeacherClassManagementComponent = () => {
                           <div className='class-activity-details'>
                             <h3>{activity.actTitle}</h3>
                             <p className="activity-description">{activity.actDesc}</p>
-                            <button disabled className="lang-btn">
-                              <img src={language.image} alt={`${language.name} Icon`} /> {language.name}
-                            </button>
-                            <p>
-                              <i className='bi bi-calendar-check'></i> {activity.startDate}
-                            </p>
-                            <p>
-                              <i className='bi bi-calendar-x'></i> {activity.endDate}
-                            </p>
+                            {/* Display multiple programming languages */}
+                            <div className="lang-container">
+                              {(activity.programming_languages || []).length > 0 ? (
+                                activity.programming_languages.map((lang, index) => {
+                                  // Use our mapping if available; otherwise, display the language's name
+                                  const mapping = programmingLanguageMap[lang.progLangID] || { name: lang.progLangName, image: null };
+                                  return (
+                                    <button disabled key={lang.progLangID} className="lang-btn">
+                                      {mapping.image && (
+                                        <img 
+                                          src={mapping.image} 
+                                          alt={`${mapping.name} Icon`} 
+                                          style={{ width: "20px", marginRight: "5px" }}
+                                        />
+                                      )}
+                                      {mapping.name}
+                                      {index < activity.programming_languages.length - 1 ? ", " : ""}
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                "N/A"
+                              )}
+                            </div>
+                            <p><i className='bi bi-calendar-check'></i> {activity.startDate}</p>
+                            <p><i className='bi bi-calendar-x'></i> {activity.endDate}</p>
                           </div>
                         </Col>
                         <Col className='activity-stats'>
@@ -405,7 +456,6 @@ export const TeacherClassManagementComponent = () => {
                 <p>No completed activities found.</p>
               ) : (
                 completedActivities.map((activity) => {
-                  const language = programmingLanguageMap[activity.progLangID] || { name: "Unknown", image: "/src/assets/default.png" };
                   return (
                     <div 
                       key={`completed-${activity.actID}`}
@@ -421,15 +471,30 @@ export const TeacherClassManagementComponent = () => {
                           <div className='class-activity-details'>
                             <h3>{activity.actTitle}</h3>
                             <p className="activity-description">{activity.actDesc}</p>
-                            <button disabled className="lang-btn">
-                              <img src={language.image} alt={`${language.name} Icon`} /> {language.name}
-                            </button>
-                            <p>
-                              <i className='bi bi-calendar-check'></i> {activity.startDate}
-                            </p>
-                            <p>
-                              <i className='bi bi-calendar-x'></i> {activity.endDate}
-                            </p>
+                            <div className="lang-container">
+                              {(activity.programming_languages || []).length > 0 ? (
+                                activity.programming_languages.map((lang, index) => {
+                                  const mapping = programmingLanguageMap[lang.progLangID] || { name: lang.progLangName, image: null };
+                                  return (
+                                    <button disabled key={lang.progLangID} className="lang-btn">
+                                      {mapping.image && (
+                                        <img 
+                                          src={mapping.image} 
+                                          alt={`${mapping.name} Icon`} 
+                                          style={{ width: "20px", marginRight: "5px" }}
+                                        />
+                                      )}
+                                      {mapping.name}
+                                      {index < activity.programming_languages.length - 1 ? ", " : ""}
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                "N/A"
+                              )}
+                            </div>
+                            <p><i className='bi bi-calendar-check'></i> {activity.startDate}</p>
+                            <p><i className='bi bi-calendar-x'></i> {activity.endDate}</p>
                           </div>
                         </Col>
                         <Col className='activity-stats'>
@@ -452,7 +517,7 @@ export const TeacherClassManagementComponent = () => {
         </div>
       </div>
 
-      {/* Edit Activity Modal */}
+      {/* -------------------- Edit Activity Modal -------------------- */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Edit Activity</Modal.Title>
@@ -510,19 +575,29 @@ export const TeacherClassManagementComponent = () => {
                 required
               />
             </Form.Group>
-            <Form.Group controlId="formProgLang" className="mt-3">
-              <Form.Label>Programming Language</Form.Label>
-              <Form.Control 
-                as="select" 
-                value={editFormData.progLangID} 
-                onChange={(e) => setEditFormData({ ...editFormData, progLangID: e.target.value })}
-                required
-              >
-                <option value="">Select a Programming Language</option>
-                <option value="1">Java</option>
-                <option value="2">C#</option>
-                <option value="3">Python</option>
-              </Form.Control>
+            {/* Multi-Language Checkboxes for Editing */}
+            <Form.Group className="mt-3">
+              <Form.Label>Select Programming Languages (Edit Mode)</Form.Label>
+              <div style={{ marginBottom: "0.5rem" }}>
+                <Form.Check 
+                  type="checkbox"
+                  label="Applicable to all"
+                  checked={
+                    editSelectedProgLangs.length > 0 &&
+                    editSelectedProgLangs.length === allProgrammingLanguages.length
+                  }
+                  onChange={(e) => handleSelectAllLangsEdit(e.target.checked)}
+                />
+              </div>
+              {allProgrammingLanguages.map((lang) => (
+                <Form.Check 
+                  key={lang.progLangID}
+                  type="checkbox"
+                  label={lang.progLangName}
+                  checked={editSelectedProgLangs.includes(lang.progLangID)}
+                  onChange={() => handleEditProgLangToggle(lang.progLangID)}
+                />
+              ))}
             </Form.Group>
             <Form.Group controlId="formMaxPoints" className="mt-3">
               <Form.Label>Total Points</Form.Label>
@@ -560,7 +635,7 @@ export const TeacherClassManagementComponent = () => {
         </Form>
       </Modal>
 
-      {/* Question Selection Modal */}
+      {/* -------------------- Question Selection Modal -------------------- */}
       <Modal 
         show={showQuestionModal} 
         onHide={handleQuestionModalClose} 
@@ -574,18 +649,26 @@ export const TeacherClassManagementComponent = () => {
           </Modal.Header>
           <Modal.Body>
             <h5>Item Type:</h5>
-            <Button variant="light" onClick={() => setShowItemTypeDropdown(!showItemTypeDropdown)}>
+            <Button 
+              variant="light" 
+              onClick={() => setShowItemTypeDropdown(!showItemTypeDropdown)}
+            >
               {qItemTypeName} <FontAwesomeIcon icon={faCaretDown} />
             </Button>
             {showItemTypeDropdown && (
               <div className="item-type-dropdown">
-                {qItemTypes.map(type => (
-                  <Button key={type.id} className="dropdown-item" onClick={() => handleItemTypeSelect(type)}>
-                    {type.name}
+                {qItemTypes.map((type) => (
+                  <Button 
+                    key={type.itemTypeID} 
+                    className="dropdown-item" 
+                    onClick={() => handleItemTypeSelect(type)}
+                  >
+                    {type.itemTypeName}
                   </Button>
                 ))}
               </div>
             )}
+
             {qPresetQuestions.map((pq, idx) => (
               <Button 
                 key={idx} 
@@ -597,10 +680,13 @@ export const TeacherClassManagementComponent = () => {
             ))}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant='secondary' onClick={handleSaveQuestion}>Save Question</Button>
+            <Button variant="secondary" onClick={handleSaveQuestion}>Save Question</Button>
+            <Button variant="danger" onClick={handleRemoveQuestion}>Remove Question</Button>
           </Modal.Footer>
         </div>
       </Modal>
     </>
   );
 };
+
+export default TeacherClassManagementComponent;

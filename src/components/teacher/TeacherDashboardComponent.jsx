@@ -109,6 +109,12 @@ export const TeacherDashboardComponent = () => {
                             <FontAwesomeIcon icon={faLaptopCode} className='sidebar-icon' /> Sandbox
                         </Nav.Link>
                     </Nav.Item>
+
+                    <Nav.Item className='nav-item' onClick={() => navigate('/teacher/question')}>
+                        <Nav.Link href='#' className='nav-link'>
+                            <FontAwesomeIcon icon={faLaptopCode} className='sidebar-icon' /> Question Bank
+                        </Nav.Link>
+                    </Nav.Item>
                 </Nav>
             </div>
 

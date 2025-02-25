@@ -37,9 +37,17 @@ const TeacherCMNavigationBarComponent = () => {
 
   return (
     <Navbar expand="lg" className="class-navbar-top">
-      {/* ✅ Back to Dashboard */}
-      <i className="bi bi-arrow-left-circle" onClick={() => navigate("/teacher/dashboard")}></i>
-      <p>Dashboard</p>
+    <i
+      className="bi bi-arrow-left-circle"
+      onClick={() => {
+        if (location.pathname.includes("create-activity")) {
+          navigate(`/teacher/class/${classID}/activity`); // Back to Class Management
+        } else {
+          navigate("/teacher/dashboard"); // Back to Dashboard
+        }
+      }}
+    ></i>
+    <p>{location.pathname.includes("create-activity") ? "Back" : "Dashboard"}</p>
 
       {/* ✅ Navigation Tabs */}
       <div className="navbar-center">

@@ -1,31 +1,46 @@
-import React, { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import "../../style/teacher/activityItems.css"; 
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Modal, Button } from 'react-bootstrap';
+import "../../style/teacher/cmActivities.css"; 
 import TeacherAMNavigationBarComponent from "./TeacherAMNavigationBarComponent";
-import { getActivityItemsByTeacher } from "../api/API"; // ✅ Import API function
+import { getActivityItemsByTeacher } from "../api/API";
+
+// Mapping of known programming languages to images
+const programmingLanguageMap = {
+  1: { name: "Java", image: "/src/assets/java2.png" },
+  2: { name: "C#", image: "/src/assets/c.png" },
+  3: { name: "Python", image: "/src/assets/py.png" }
+};
 
 const TeacherActivityItemsComponent = () => {
-  const { actID } = useParams(); // ✅ Get actID from URL
+  const { actID } = useParams();
   const navigate = useNavigate();
-  const [activity, setActivity] = useState(null); // ✅ Store activity details
-  const [items, setItems] = useState([]); // ✅ Store activity items
+  const [activity, setActivity] = useState(null);
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedQuestion, setSelectedQuestion] = useState(null); // ✅ Track selected question
 
-  // ✅ Fetch activity data on mount
+  // Modal state for showing question details
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+
+  // Fetch activity data on mount
   useEffect(() => {
     fetchActivityData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchActivityData = async () => {
     try {
       const response = await getActivityItemsByTeacher(actID);
       if (!response.error) {
+        // If your backend also returns the activity’s languages, you can store them too
         setActivity({
           name: response.activityName,
           maxPoints: response.maxPoints,
+          // If the backend returns 'programming_languages' for the activity itself
+          // you can store them here. For now, we skip it if not needed.
         });
-        setItems(response.questions);
+        setItems(response.questions || []);
       }
     } catch (error) {
       console.error("❌ Error fetching activity data:", error);
@@ -34,40 +49,110 @@ const TeacherActivityItemsComponent = () => {
     }
   };
 
-  // ✅ Handle selecting a question
-  const handleQuestionClick = (index) => {
-    setSelectedQuestion(index === selectedQuestion ? null : index);
+  // When a row (question) is clicked, open the modal
+  const handleRowClick = (question) => {
+    setSelectedQuestion(question);
+    setShowDetailsModal(true);
   };
 
   return (
     <div className="activity-items">
       <TeacherAMNavigationBarComponent />
 
-      {/* ✅ Display activity details from API */}
       {activity && (
-        <ActivityHeader name={activity.name} points={activity.maxPoints} />
+        <ActivityHeader 
+          name={activity.name} 
+          points={activity.maxPoints}
+        />
       )}
 
-      <TableComponent 
-        items={items} 
-        loading={loading} 
-        selectedQuestion={selectedQuestion}
-        onQuestionClick={handleQuestionClick}
-      />
+      <TableComponent items={items} loading={loading} onRowClick={handleRowClick} />
 
-      {/* ✅ "Try Answering" Button */}
       <button
-        className={`try-answer-button ${selectedQuestion !== null ? "active" : "disabled"}`}
-        onClick={() => selectedQuestion !== null && navigate(`/teacher/class/activity/${actID}/assessment`)}
-        disabled={selectedQuestion === null}
+        className="try-answer-button active"
+        onClick={() => navigate(`/teacher/class/activity/${actID}/assessment`)}
       >
-        ✏️ Try Answering the Item
+        ✏️ Try Answering the Activity
       </button>
+
+      {/* Modal to show question details */}
+      <Modal
+        show={showDetailsModal}
+        onHide={() => setShowDetailsModal(false)}
+        size="lg"
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Question Details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedQuestion ? (
+            <div>
+              <h5>{selectedQuestion.questionName}</h5>
+              <p>
+                <strong>Description:</strong> {selectedQuestion.questionDesc}
+              </p>
+              <p>
+                <strong>Difficulty:</strong> {selectedQuestion.difficulty}
+              </p>
+
+              {/* The important part: show the question’s languages from `programming_languages` */}
+              <p>
+                <strong>Programming Languages:</strong>{" "}
+                {selectedQuestion.programming_languages && selectedQuestion.programming_languages.length > 0 ? (
+                  selectedQuestion.programming_languages.map((lang, index) => {
+                    const mapping = programmingLanguageMap[lang.progLangID] || { name: lang.progLangName, image: null };
+                    return (
+                      <span key={lang.progLangID}>
+                        {mapping.image ? (
+                          <>
+                            <img 
+                              src={mapping.image} 
+                              alt={`${mapping.name} Icon`} 
+                              style={{ width: "20px", marginRight: "5px" }}
+                            />
+                            {mapping.name}
+                          </>
+                        ) : (
+                          lang.progLangName
+                        )}
+                        {index < selectedQuestion.programming_languages.length - 1 ? ", " : ""}
+                      </span>
+                    );
+                  })
+                ) : (
+                  "N/A"
+                )}
+              </p>
+
+              <h6>Test Cases:</h6>
+              {selectedQuestion.testCases && selectedQuestion.testCases.length > 0 ? (
+                <ol>
+                  {selectedQuestion.testCases.map((tc, index) => (
+                    <li key={index}>
+                      <strong>Input:</strong> {tc.inputData || "None"} |{" "}
+                      <strong>Expected Output:</strong> {tc.expectedOutput}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p>No test cases available.</p>
+              )}
+            </div>
+          ) : (
+            <p>No question selected.</p>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDetailsModal(false)}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   );
 };
 
-// ✅ Activity Header Component
+// Activity Header Component
 const ActivityHeader = ({ name, points }) => (
   <header className="activity-header">
     <div className="header-content">
@@ -82,8 +167,8 @@ const ActivityHeader = ({ name, points }) => (
   </header>
 );
 
-// ✅ Table Component (Dynamic Data)
-const TableComponent = ({ items, loading, selectedQuestion, onQuestionClick }) => {
+// Table Component (Dynamic Data)
+const TableComponent = ({ items, loading, onRowClick }) => {
   return (
     <div className="table-wrapper">
       <table className="item-table">
@@ -103,16 +188,16 @@ const TableComponent = ({ items, loading, selectedQuestion, onQuestionClick }) =
             </tr>
           ) : items.length > 0 ? (
             items.map((item, index) => (
-              <tr 
-                key={index} 
-                className={selectedQuestion === index ? "selected" : ""}
-                onClick={() => onQuestionClick(index)}
-              >
+              <tr key={index} onClick={() => onRowClick(item)}>
                 <td>{item.questionName}</td>
                 <td>{item.difficulty}</td>
                 <td>{item.itemType}</td>
-                <td>{item.avgStudentScore !== "-" ? `${item.avgStudentScore} / 100` : "- / 100"}</td>
-                <td>{item.avgStudentTimeSpent !== "-" ? item.avgStudentTimeSpent : "-"}</td>
+                <td>
+                  {item.avgStudentScore !== "-" ? `${item.avgStudentScore} / 100` : "- / 100"}
+                </td>
+                <td>
+                  {item.avgStudentTimeSpent !== "-" ? item.avgStudentTimeSpent : "-"}
+                </td>
               </tr>
             ))
           ) : (

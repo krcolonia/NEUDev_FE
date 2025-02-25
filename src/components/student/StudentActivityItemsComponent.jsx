@@ -10,7 +10,6 @@ const StudentActivityItemsComponent = () => {
   const [activity, setActivity] = useState(null); // ✅ Store activity details
   const [items, setItems] = useState([]); // ✅ Store activity items
   const [loading, setLoading] = useState(true);
-  const [selectedQuestion, setSelectedQuestion] = useState(null); // ✅ Track selected question
 
   // ✅ Fetch activity data on mount
   useEffect(() => {
@@ -34,33 +33,23 @@ const StudentActivityItemsComponent = () => {
     }
   };
 
-  // ✅ Handle question selection
-  const handleSelectQuestion = (index) => {
-    setSelectedQuestion((prev) => (prev === index ? null : index));
-  };
-
   return (
     <div className="activity-items">
       <StudentAMNavigationBarComponent />
 
-      {/* ✅ Display activity details from API */}
+      {/* ✅ Display activity details */}
       {activity && (
         <ActivityHeader name={activity.name} points={activity.maxPoints} />
       )}
 
-      <TableComponent 
-        items={items} 
-        loading={loading} 
-        selectedQuestion={selectedQuestion}
-        onSelectQuestion={handleSelectQuestion}
-      />
+      <TableComponent items={items} loading={loading} />
 
-      {/* ✅ Answer The Item Button */}
+      {/* ✅ "Answer The Activity" Button - Always Enabled */}
       <div 
-        className={`answer-item-btn ${selectedQuestion !== null ? "active" : "disabled"}`}
+        className="answer-item-btn active"
         onClick={() => navigate(`/student/class/activity/${actID}/assessment`)}
       >
-        <i className="bi bi-pencil-square"></i> Answer The Item
+        <i className="bi bi-pencil-square"></i> Answer The Activity
       </div>
     </div>
   );
@@ -82,7 +71,7 @@ const ActivityHeader = ({ name, points }) => (
 );
 
 // ✅ Table Component (Dynamic Data)
-const TableComponent = ({ items, loading, selectedQuestion, onSelectQuestion }) => {
+const TableComponent = ({ items, loading }) => {
   return (
     <div className="table-wrapper">
       <table className="item-table">
@@ -103,11 +92,7 @@ const TableComponent = ({ items, loading, selectedQuestion, onSelectQuestion }) 
             </tr>
           ) : items.length > 0 ? (
             items.map((item, index) => (
-              <tr 
-                key={index} 
-                className={selectedQuestion === index ? "selected" : ""}
-                onClick={() => onSelectQuestion(index)}
-              >
+              <tr key={index}>
                 <td>{item.questionName}</td>
                 <td>{item.difficulty}</td>
                 <td>{item.itemType}</td>
