@@ -10,7 +10,6 @@ import '/src/style/teacher/amCreateNewActivity.css';
 import TeacherCMNavigationBarComponent from './TeacherCMNavigationBarComponent';
 import { getQuestions, createActivity, getItemTypes, getProgrammingLanguages } from '../api/API';
 
-// Example: If your DB includes "C++", "C", etc., they will be returned by `getProgrammingLanguages()`.
 const DateTimeItem = ({ icon, label, date, setDate, className }) => (
   <div className={`date-time-item ${className}`}>
     <div className="label-with-icon">
@@ -29,27 +28,31 @@ const DateTimeItem = ({ icon, label, date, setDate, className }) => (
 export const TeacherCreateActivityComponent = () => {
   const navigate = useNavigate();
 
-  // Activity form state
+  // -------------------- Activity Form State --------------------
   const [activityTitle, setActivityTitle] = useState('');
   const [activityDescription, setActivityDescription] = useState('');
   const [difficulty, setDifficulty] = useState('');
-  // Use an array for multiple programming languages
-  const [selectedProgLangs, setSelectedProgLangs] = useState([]);
+  const [selectedProgLangs, setSelectedProgLangs] = useState([]); // multiple languages
   const [maxPoints, setMaxPoints] = useState('');
   const [selectedItemType, setSelectedItemType] = useState(null);
   const [itemTypeName, setItemTypeName] = useState('');
   const [itemTypes, setItemTypes] = useState([]);
-  // For questions
+
+  // For question selection (3 slots)
   const [questions, setQuestions] = useState(['', '', '']);
   const [presetQuestions, setPresetQuestions] = useState([]);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(null);
+
+  // Dates
   const [dateOpened, setDateOpened] = useState('');
   const [dateClosed, setDateClosed] = useState('');
+
+  // Modal for picking questions
   const [showModal, setShowModal] = useState(false);
   const [showItemTypeDropdown, setShowItemTypeDropdown] = useState(false);
 
-  // Dynamically loaded languages
+  // Programming languages from the server
   const [programmingLanguages, setProgrammingLanguages] = useState([]);
 
   // -------------------- Lifecycle --------------------
@@ -108,14 +111,31 @@ export const TeacherCreateActivityComponent = () => {
     setSelectedQuestion(question);
   };
 
+  /**
+   * The key logic: if the question is already chosen in *any* slot,
+   * block it to avoid duplicates.
+   */
   const handleSaveQuestion = () => {
-    if (selectedQuestion && selectedQuestionIndex !== null) {
-      const updatedQuestions = [...questions];
-      updatedQuestions[selectedQuestionIndex] = selectedQuestion.questionName;
-      setQuestions(updatedQuestions);
-      setSelectedQuestion(null);
-      setShowModal(false);
+    if (!selectedQuestion || selectedQuestionIndex === null) return;
+
+    // If the question name is already in another slot, show an error
+    const alreadyExists = questions.some(
+      (qName, i) =>
+        i !== selectedQuestionIndex && // exclude the same slot
+        qName === selectedQuestion.questionName
+    );
+    if (alreadyExists) {
+      alert("❌ You already picked that question. Please choose a different one.");
+      return;
     }
+
+    // Otherwise, set it in the chosen slot
+    const updatedQuestions = [...questions];
+    updatedQuestions[selectedQuestionIndex] = selectedQuestion.questionName;
+    setQuestions(updatedQuestions);
+
+    setSelectedQuestion(null);
+    setShowModal(false);
   };
 
   const handleItemTypeSelect = (type) => {
@@ -133,14 +153,11 @@ export const TeacherCreateActivityComponent = () => {
     }
   };
 
-  // "Select All" / "Applicable to all"
   const handleSelectAllLangs = (checked) => {
     if (checked) {
-      // Check all
       const allIDs = programmingLanguages.map(lang => lang.progLangID);
       setSelectedProgLangs(allIDs);
     } else {
-      // Uncheck all
       setSelectedProgLangs([]);
     }
   };
@@ -165,18 +182,17 @@ export const TeacherCreateActivityComponent = () => {
 
     const classID = sessionStorage.getItem("selectedClassID");
 
-    console.log("🔍 Preset Questions List:", presetQuestions);
-
+    // Build final question objects
     const selectedQuestions = questions
       .filter(q => q.trim() !== '')
       .map(q => {
-        const matchedQuestion = presetQuestions.find(pq => pq.questionName.trim() === q.trim());
-        if (!matchedQuestion) {
+        const matched = presetQuestions.find(pq => pq.questionName.trim() === q.trim());
+        if (!matched) {
           console.error(`❌ No match found for question: "${q}"`);
           return null;
         }
         return {
-          questionID: matchedQuestion.questionID,
+          questionID: matched.questionID,
           itemTypeID: selectedItemType
         };
       })
@@ -194,7 +210,6 @@ export const TeacherCreateActivityComponent = () => {
       difficulty,
       startDate: dateOpened,
       endDate: dateClosed,
-      // Send an array of programming language IDs
       progLangIDs: selectedProgLangs,
       maxPoints: parseInt(maxPoints),
       questions: selectedQuestions
@@ -206,9 +221,9 @@ export const TeacherCreateActivityComponent = () => {
     if (response.error) {
       alert(`❌ Failed to create activity: ${response.error}`);
     } else {
-        console.log("Selected languages:", selectedProgLangs);
+      console.log("Selected languages:", selectedProgLangs);
       alert("✅ Activity created successfully!");
-      navigate(`/teacher/class/${classID}/activity`); // Redirect to class page
+      navigate(`/teacher/class/${classID}/activity`); // redirect
     }
   };
 
@@ -249,7 +264,7 @@ export const TeacherCreateActivityComponent = () => {
               />
             </div>
 
-            {/* Questions (up to 3) */}
+            {/* 3 Question Slots */}
             <div className='question-section'>
               <h4>Set Questions (Maximum of 3)</h4>
               {questions.map((q, index) => (
@@ -393,5 +408,4 @@ export const TeacherCreateActivityComponent = () => {
   );
 };
 
-// Default export
 export default TeacherCreateActivityComponent;
