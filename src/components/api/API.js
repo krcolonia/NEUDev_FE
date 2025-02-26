@@ -449,7 +449,7 @@ async function getClassActivities(classID) {
 }
 
 // ✅ Fetch preset questions based on itemTypeID
-async function getPresetQuestions(itemTypeID) {
+async function getQuestions(itemTypeID) {
     const token = sessionStorage.getItem("access_token");
     if (!token) return { error: "Unauthorized access: No token found" };
 
@@ -559,6 +559,84 @@ async function updateActivitySettingsTeacher(actID, settings) {
     });
 }
 
+//////////////////////////////////////////
+// QUESTION & TEST CASES MANAGEMENT
+//////////////////////////////////////////
+
+// ✅ Fetch all questions for a specific item type
+async function getQuestionsByItemType(itemTypeID) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/questions/itemType/${itemTypeID}`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+}
+
+// ✅ Fetch a specific question (with test cases)
+async function getQuestionDetails(questionID) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/questions/${questionID}`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+}
+
+// ✅ Create a new question (with test cases)
+async function createQuestion(questionData) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/questions`, {
+        method: "POST",
+        headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify(questionData)
+    });
+}
+
+// ✅ Update an existing question (with test cases)
+async function updateQuestion(questionID, questionData) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/questions/${questionID}`, {
+        method: "PUT",
+        headers: { 
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(questionData)
+    });
+}
+
+// ✅ Delete a question (only if it's not linked to an activity)
+async function deleteQuestion(questionID) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/questions/${questionID}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+}
+
+async function getProgrammingLanguages() {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/programmingLanguages`, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+    });
+}
+
 // Exporting functions for use in other files
 export { 
     register, 
@@ -580,7 +658,7 @@ export {
     editActivity,
     deleteActivity,
     getClassActivities, 
-    getPresetQuestions,
+    getQuestions,
     getItemTypes,
     getActivityDetails,
     getActivityItemsByStudent, 
@@ -588,5 +666,11 @@ export {
     getActivityItemsByTeacher, 
     getActivityLeaderboardByTeacher,
     getActivitySettingsTeacher, 
-    updateActivitySettingsTeacher
+    updateActivitySettingsTeacher,
+    getQuestionsByItemType,
+    getQuestionDetails,
+    createQuestion,
+    updateQuestion,
+    deleteQuestion,
+    getProgrammingLanguages
 };
