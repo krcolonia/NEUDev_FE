@@ -63,31 +63,13 @@ export const StudentPlaygroundComponent = () => {
         }
 
         try {
-            console.log("Running Code:", { language: selectedLanguage.name, code, input });
+            console.log("Running Code:", {
+                selectedLanguage: selectedLanguage.name,
+                code,
+                input
+            });
 
-            // IF USING THE API COMPILER FROM THE INTERNET
-            // const response = await fetch('https://api.codex.jaagrav.in', {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({
-            //         code: code,
-            //         language: languageMap[selectedLanguage.name],
-            //         input: input,
-            //     }),
-            // });
-
-            // // IF RUNNING THE COMPILER LOCALLY IN A MACHINE
-            // const response = await fetch('http://localhost:8080', {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({
-            //         code: code,
-            //         language: languageMap[selectedLanguage.name],
-            //         input: input,
-            //     }),
-            // });
-
-            // IF RUNNING THE COMPILER USING RAILWAY
+            // Send request to the compiler API (Railway in this example)
             const response = await fetch('https://neudevcompiler-production.up.railway.app', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -99,10 +81,17 @@ export const StudentPlaygroundComponent = () => {
             });
 
             const data = await response.json();
-            if (response.ok) {
-                setOutput(data.output || 'No output');
+            console.log("[Compiler Response]", response.status, data);
+
+            // 1) Check if HTTP status is not OK
+            // 2) Or if the JSON has an 'error' property
+            if (!response.ok || data.error) {
+                const errorMsg = data.error || data.stderr || 'Something went wrong';
+                setOutput(`Error: ${errorMsg}`);
             } else {
-                setOutput(`Error: ${data.error || 'Something went wrong'}`);
+                // The code ran successfully
+                const actualOutput = data.output?.trim() ?? '';
+                setOutput(actualOutput.length > 0 ? actualOutput : 'No output');
             }
         } catch (error) {
             setOutput(`Error: ${error.message}`);
@@ -119,7 +108,8 @@ export const StudentPlaygroundComponent = () => {
             'C#': /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/
         };
 
-        return patterns[language]?.test(code.trim());
+        // If we have a pattern, test it; otherwise, assume it's valid
+        return patterns[language]?.test(code.trim()) ?? true;
     };
 
     // Function to check if the code contains an input statement
@@ -142,9 +132,14 @@ export const StudentPlaygroundComponent = () => {
                     <div className="playground-header">
                         <Row>
                             <Col sm={10} className="left-corner">
-                                <Tabs defaultActiveKey={key} id="tab" onSelect={(k) => setKey(k)} fill>
-                                    <Tab eventKey="main" title="main.py"></Tab>
-                                    <Tab eventKey="code.java" title="code.java"></Tab>
+                                <Tabs
+                                    defaultActiveKey={key}
+                                    id="tab"
+                                    onSelect={(k) => setKey(k)}
+                                    fill
+                                >
+                                    <Tab eventKey="main" title="main.py" />
+                                    <Tab eventKey="code.java" title="code.java" />
                                 </Tabs>
                                 <a href="#"><span className="bi bi-plus-square-fill"></span></a>
                             </Col>
@@ -156,15 +151,28 @@ export const StudentPlaygroundComponent = () => {
                                     size="sm"
                                     title={
                                         <>
-                                            <img src={selectedLanguage.imgSrc} style={{ width: '20px', marginRight: '8px' }} alt="language-icon" />
+                                            <img
+                                                src={selectedLanguage.imgSrc}
+                                                style={{ width: '20px', marginRight: '8px' }}
+                                                alt="language-icon"
+                                            />
                                             {selectedLanguage.name}
                                         </>
                                     }
                                     onSelect={(eventKey) => handleSelect(eventKey)}
                                 >
-                                    <Dropdown.Item eventKey="C#"><img src="/src/assets/c.png" alt="csharp-icon" />C#</Dropdown.Item>
-                                    <Dropdown.Item eventKey="Java"><img src="/src/assets/java2.png" alt="java-icon" />Java</Dropdown.Item>
-                                    <Dropdown.Item eventKey="Python"><img src="/src/assets/py.png" alt="python-icon" />Python</Dropdown.Item>
+                                    <Dropdown.Item eventKey="C#">
+                                        <img src="/src/assets/c.png" alt="csharp-icon" />
+                                        C#
+                                    </Dropdown.Item>
+                                    <Dropdown.Item eventKey="Java">
+                                        <img src="/src/assets/java2.png" alt="java-icon" />
+                                        Java
+                                    </Dropdown.Item>
+                                    <Dropdown.Item eventKey="Python">
+                                        <img src="/src/assets/py.png" alt="python-icon" />
+                                        Python
+                                    </Dropdown.Item>
                                 </DropdownButton>
                             </Col>
                         </Row>

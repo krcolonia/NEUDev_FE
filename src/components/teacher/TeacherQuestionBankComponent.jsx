@@ -14,7 +14,7 @@ import {
 } from "../api/API.js";
 
 /**
- * If you want to show icons for certain languages:
+ * Optional language -> icon mapping
  */
 const programmingLanguageMap = {
   Java:   { name: "Java",   image: "/src/assets/java2.png" },
@@ -37,7 +37,7 @@ function formatDateTime(isoString) {
     hour12: true,
   };
   let localStr = dateObj.toLocaleString("en-US", options);
-  // remove the space before AM/PM => "9:45PM"
+  // remove space before AM/PM => "9:45PM"
   localStr = localStr.replace(/\s(AM|PM)$/, "$1");
   return localStr;
 }
@@ -52,7 +52,7 @@ const compilerCodeMap = {
 };
 
 /**
- * Very basic pattern checks to see if code matches the chosen language
+ * Basic code validation patterns
  */
 const codeValidationPatterns = {
   Java:   /\b(public\s+class\s+\w+|System\.out\.println|import\s+java\.)\b/i,
@@ -62,7 +62,7 @@ const codeValidationPatterns = {
 
 function isValidCodeForLanguage(code, languageName) {
   const pattern = codeValidationPatterns[languageName];
-  if (!pattern) return true; // if we don't have a pattern, skip
+  if (!pattern) return true; // if no pattern is set, skip
   return pattern.test(code.trim());
 }
 
@@ -87,18 +87,15 @@ export default function TeacherQuestionBankComponent() {
     questionDesc: "",
     difficulty: "Beginner",
     progLangIDs: [],
-    testCases: [], // Will be populated by each successful run
+    testCases: [],
   });
 
   // -------------------- Code Testing --------------------
   const [code, setCode] = useState("// Write your sample solution here");
   const [testLangID, setTestLangID] = useState(null); // which language to compile
   const [compiling, setCompiling] = useState(false);
-  const [rawOutput, setRawOutput] = useState(""); // show only the single run's output in the modal
-
-  // We also store a single "runtime input" field so the teacher can
-  // specify an input each time they run the code:
-  const [runtimeInput, setRuntimeInput] = useState("");
+  const [rawOutput, setRawOutput] = useState(""); // single-run output or error
+  const [runtimeInput, setRuntimeInput] = useState(""); // user-provided input each run
 
   // -------------------- Lifecycle: Fetch Data --------------------
   useEffect(() => {
@@ -198,7 +195,7 @@ export default function TeacherQuestionBankComponent() {
       questionName: questionData.questionName.trim(),
       questionDesc: questionData.questionDesc.trim(),
       difficulty: questionData.difficulty,
-      // Only keep test cases that have either input or output
+      // Keep test cases that have either input or output
       testCases: questionData.testCases.filter(tc =>
         tc.inputData.trim() !== "" || tc.expectedOutput.trim() !== ""
       ),
@@ -232,7 +229,7 @@ export default function TeacherQuestionBankComponent() {
     setQuestionData({ ...questionData, testCases: updated });
   }
 
-  // -------------------- Run Code Once -> Create a Single Test Case --------------------
+  // -------------------- Run Code Once -> Create a Single Test Case ONLY if success --------------------
   async function handleRunCode() {
     if (!testLangID) {
       alert("Please select which language to test with.");
@@ -276,18 +273,29 @@ export default function TeacherQuestionBankComponent() {
       });
 
       const data = await response.json();
-      if (!response.ok) {
-        alert(`Compile/Run Error: ${data.error || "Something went wrong"}`);
+      console.log("[Compiler Response]", response.status, data);
+
+      // 1) Check HTTP status
+      // 2) Also check if `data.error` is present
+      if (!response.ok || data.error) {
+        // If the code fails to compile or run, show the error in rawOutput
+        let errorMsg = data.error || data.stderr || "Something went wrong";
+        setRawOutput(`Error: ${errorMsg}`);
+        // ❌ DO NOT add a new test case
       } else {
         // The code ran successfully
         const actualOutput = (data.output || "").trim();
-        setRawOutput(actualOutput);
+        // If it's empty, let's label it as "(No output returned...)"
+        const finalOutput = actualOutput.length > 0
+          ? actualOutput
+          : "(No output returned by the compiler)";
 
-        // Create a brand new test case with (runtimeInput -> actualOutput)
-        // and append it to the questionData testCases array:
+        setRawOutput(finalOutput);
+
+        // ✅ Only add the test case if there's no error
         const newTC = {
           inputData: runtimeInput,
-          expectedOutput: actualOutput,
+          expectedOutput: finalOutput,
         };
         setQuestionData({
           ...questionData,
@@ -295,10 +303,10 @@ export default function TeacherQuestionBankComponent() {
         });
       }
     } catch (error) {
-      alert(`Exception: ${error.message}`);
+      setRawOutput(`Exception: ${error.message}`);
     } finally {
       setCompiling(false);
-      setShowOutputModal(true); // Show the single-run output
+      setShowOutputModal(true); // Show the single-run output (or error)
     }
   }
 
@@ -410,7 +418,7 @@ export default function TeacherQuestionBankComponent() {
                         ? `${q.test_cases.length} test case(s)`
                         : "No test cases"}
                     </td>
-                    <td>{formatDateTime(q.created_at)}</td>
+                    <td>{q.created_at ? formatDateTime(q.created_at) : "N/A"}</td>
                     <td>
                       <button
                         className="edit-btn"
@@ -563,7 +571,7 @@ export default function TeacherQuestionBankComponent() {
 
             {/* Show existing test cases (with a remove button) */}
             <Form.Group className="mb-3">
-              <Form.Label>Test Cases (auto-added after each successful run)</Form.Label>
+              <Form.Label>Test Cases (added after each successful run)</Form.Label>
               {(questionData.testCases || []).map((tc, index) => (
                 <div
                   key={index}
