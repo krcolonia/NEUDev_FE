@@ -11,6 +11,7 @@ export const TeacherDashboardComponent = () => {
     const defaultProfileImage = '/src/assets/noy.png';
     const [profileImage, setProfileImage] = useState(defaultProfileImage);
     const [className, setClassName] = useState("");
+    const [classSection, setClassSection] = useState(""); // ✅ Added state for class section
     const [isCreating, setIsCreating] = useState(false);
     const [showCreateClass, setShowCreateClass] = useState(false);
     const [classes, setClasses] = useState([]); 
@@ -22,7 +23,7 @@ export const TeacherDashboardComponent = () => {
                 const response = await getProfile();
                 console.log("🔍 API Response (Profile):", response);
         
-                if (response) {  // ✅ Directly use response, not response.user
+                if (response) {
                     setProfileImage(response.profileImage || defaultProfileImage);
                     setInstructorName(`${response.firstname} ${response.lastname}`);
                 }
@@ -48,7 +49,7 @@ export const TeacherDashboardComponent = () => {
 
         fetchProfile();
         fetchClasses();
-    }, [instructorName]); // ✅ Ensure it updates once instructorName is fetched
+    }, [instructorName]);
 
     const handleLogout = async () => {
         const result = await logout();
@@ -64,8 +65,8 @@ export const TeacherDashboardComponent = () => {
     const handleClassCreate = async (e) => {
         e.preventDefault();
     
-        if (!className.trim()) {
-            alert("⚠️ Please enter a class name.");
+        if (!className.trim() || !classSection.trim()) {
+            alert("⚠️ Please enter both class name and section.");
             return;
         }
     
@@ -73,6 +74,7 @@ export const TeacherDashboardComponent = () => {
     
         const classData = {
             className: className,
+            classSection: classSection, // ✅ Added classSection field
             classDesc: "" 
         };
     
@@ -86,6 +88,7 @@ export const TeacherDashboardComponent = () => {
             alert("✅ Class created successfully!");
             setShowCreateClass(false);
             setClassName(""); 
+            setClassSection(""); // ✅ Reset classSection field
     
             // ✅ Ensure instructor name is added correctly
             setClasses([...classes, { ...response, instructorName }]); 
@@ -144,24 +147,22 @@ export const TeacherDashboardComponent = () => {
                     <h5>Active Classes</h5>
 
                     <div className='classes-container'>
-                        {/* ✅ Dynamically Render Classes */}
                         {classes.map((classItem, index) => (
                             <Card className='class-card' key={index} 
                                 onClick={() => {
-                                    sessionStorage.setItem("selectedClassID", classItem.id || classItem.classID); // ✅ Store classID
+                                    sessionStorage.setItem("selectedClassID", classItem.id || classItem.classID);
                                     navigate(`/teacher/class/${classItem.id || classItem.classID}/activity`);
                                 }} 
                                 style={{ cursor: 'pointer' }}>
                             <Card.Img variant='top' src='/src/assets/univ.png' />
                             <Card.Body>
                                 <Card.Text>
-                                    {classItem.className} <br /> {classItem.instructorName || instructorName}
+                                    {classItem.className} - {classItem.classSection} <br /> {classItem.instructorName || instructorName}
                                 </Card.Text>
                             </Card.Body>
                         </Card>
                         ))}
 
-                        {/* Create Class Button */}
                         <Button variant='transparent' className='create-class' onClick={() => setShowCreateClass(true)}>
                             + Create a Class
                         </Button>
@@ -182,6 +183,18 @@ export const TeacherDashboardComponent = () => {
                                     placeholder='Enter class name' 
                                     value={className}
                                     onChange={(e) => setClassName(e.target.value)}
+                                    required
+                                />
+                            </Form.Group>
+
+                            {/* ✅ Added Class Section Input */}
+                            <Form.Group controlId='formClassSection' className='mt-3'>
+                                <Form.Label>Class Section</Form.Label>
+                                <Form.Control 
+                                    type='text' 
+                                    placeholder='Enter class section' 
+                                    value={classSection}
+                                    onChange={(e) => setClassSection(e.target.value)}
                                     required
                                 />
                             </Form.Group>

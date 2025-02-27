@@ -323,9 +323,19 @@ async function getStudentClasses() {
 
     if (!token || !studentID) return { error: "Unauthorized access: No token or student ID found" };
 
-    return await safeFetch(`${API_LINK}/student/classes`, { // ✅ Fetch only enrolled classes
+    return await safeFetch(`${API_LINK}/student/classes`, {
         method: "GET",
         headers: { "Authorization": `Bearer ${token}` }
+    }).then(response => {
+        if (!response.error) {
+            return response.map(cls => ({
+                classID: cls.classID,
+                className: cls.className,
+                section: cls.classSection || "No Section",
+                teacherName: cls.teacherName || "Unknown Teacher"
+            }));
+        }
+        return response;
     });
 }
 
@@ -356,12 +366,12 @@ async function createClass(classData) {
     const token = sessionStorage.getItem("access_token");
     if (!token) return { error: "Unauthorized access: No token found" };
 
-    if (!classData || !classData.className) {
-        console.error("❌ Error: className is missing!");
-        return { error: "Class name is required." };
+    if (!classData || !classData.className || !classData.classSection) {
+        console.error("❌ Error: className or classSection is missing!");
+        return { error: "Class name and section are required." };
     }
 
-    console.log("📤 Sending Class Data:", classData); // Debugging output
+    console.log("📤 Sending Class Data to Backend:", JSON.stringify(classData, null, 2)); // ✅ Debugging output
 
     return await safeFetch(`${API_LINK}/teacher/class`, {
         method: "POST",
@@ -371,11 +381,12 @@ async function createClass(classData) {
             "Accept": "application/json"
         },
         body: JSON.stringify({
-            className: classData.className.trim(), // ✅ Ensure it sends the correct key
-            classDesc: classData.classDesc ? classData.classDesc.trim() : ""
+            className: classData.className.trim(),
+            classSection: classData.classSection.trim(), // ✅ Ensure this is sent
         })
     });
 }
+
 
 async function deleteClass(classID) {
     return await safeFetch(`${API_LINK}/teacher/class/${classID}`, { method: "DELETE" });

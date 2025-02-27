@@ -132,14 +132,16 @@ export const StudentDashboardComponent = () => {
                             classes.map((classItem, index) => (
                                 <Card className='class-card' key={index} 
                                     onClick={() => {
-                                        sessionStorage.setItem("selectedClassID", classItem.id || classItem.classID);
-                                        navigate(`/student/class/${classItem.id || classItem.classID}/activity`);
+                                        sessionStorage.setItem("selectedClassID", classItem.classID);
+                                        navigate(`/student/class/${classItem.classID}/activity`);
                                     }} 
                                     style={{ cursor: 'pointer' }}>
                                     <Card.Img variant='top' src='/src/assets/univ.png' />
                                     <Card.Body>
+                                        <Card.Title>{classItem.className}</Card.Title>
                                         <Card.Text>
-                                            {classItem.className} <br /> {classItem.teacherID}
+                                            <strong>Section:</strong> {classItem.section} <br />
+                                            <strong>Teacher:</strong> {classItem.teacherName}
                                         </Card.Text>
                                     </Card.Body>
                                 </Card>
@@ -147,7 +149,7 @@ export const StudentDashboardComponent = () => {
                         ) : (
                             <p>No enrolled classes yet.</p>
                         )}
-
+                        
                         {/* Join Class Button */}
                         <Button variant='transparent' className='join-class' onClick={() => setShowJoinClass(true)}>
                             + Join a Class
