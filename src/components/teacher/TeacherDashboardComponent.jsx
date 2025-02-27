@@ -157,7 +157,9 @@ export const TeacherDashboardComponent = () => {
                             <Card.Img variant='top' src='/src/assets/univ.png' />
                             <Card.Body>
                                 <Card.Text>
-                                    {classItem.className} - {classItem.classSection} <br /> {classItem.instructorName || instructorName}
+                                <strong><h6>{classItem.className}</h6></strong>
+                                <strong>Section:</strong> {classItem.classSection} <br />
+                                <strong>Teacher:</strong> {classItem.instructorName || instructorName}
                                 </Card.Text>
                             </Card.Body>
                         </Card>

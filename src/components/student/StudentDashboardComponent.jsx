@@ -138,9 +138,9 @@ export const StudentDashboardComponent = () => {
                                     style={{ cursor: 'pointer' }}>
                                     <Card.Img variant='top' src='/src/assets/univ.png' />
                                     <Card.Body>
-                                        <Card.Title>{classItem.className}</Card.Title>
                                         <Card.Text>
-                                            <strong>Section:</strong> {classItem.section} <br />
+                                            <strong><h6>{classItem.className}</h6></strong>
+                                            <strong>Section:</strong> {classItem.classSection} <br />
                                             <strong>Teacher:</strong> {classItem.teacherName}
                                         </Card.Text>
                                     </Card.Body>

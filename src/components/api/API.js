@@ -331,8 +331,8 @@ async function getStudentClasses() {
             return response.map(cls => ({
                 classID: cls.classID,
                 className: cls.className,
-                section: cls.classSection || "No Section",
-                teacherName: cls.teacherName || "Unknown Teacher"
+                classSection: cls.classSection,
+                teacherName: cls.teacherName
             }));
         }
         return response;
