@@ -335,11 +335,19 @@ async function getStudentClasses() {
 
 async function getClasses() {
     const token = sessionStorage.getItem("access_token");
-    if (!token) return { error: "Unauthorized access: No token found" };
+    const teacherID = sessionStorage.getItem("userID"); // Get the logged-in teacher ID
+
+    if (!token || !teacherID) return { error: "Unauthorized access: No token or teacher ID found" };
 
     return await safeFetch(`${API_LINK}/teacher/classes`, { 
         method: "GET",
         headers: { "Authorization": `Bearer ${token}` }
+    }).then(response => {
+        if (!response.error) {
+            // Ensure only classes created by the logged-in teacher
+            return response.filter(cls => cls.teacherID == teacherID);
+        }
+        return response;
     });
 }
 

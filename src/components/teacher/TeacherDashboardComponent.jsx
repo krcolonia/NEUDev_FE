@@ -33,18 +33,18 @@ export const TeacherDashboardComponent = () => {
 
         const fetchClasses = async () => {
             const response = await getClasses();
-            console.log("📥 Fetched Classes:", response); // 🔍 Check what the API sends
+            console.log("📥 Fetched Classes (Filtered for Teacher):", response);
         
             if (!response.error) {
                 const updatedClasses = response.map(cls => ({
                     ...cls,
-                    instructorName: cls.instructorName || instructorName
+                    instructorName: instructorName
                 }));
                 setClasses(updatedClasses);
             } else {
                 console.error("❌ Failed to fetch classes:", response.error);
             }
-        };        
+        };       
 
         fetchProfile();
         fetchClasses();
