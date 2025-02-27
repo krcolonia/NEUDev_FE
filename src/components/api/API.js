@@ -289,7 +289,7 @@ async function enrollInClass(classID) {
 
     if (!token || !studentID) return { error: "Unauthorized access: No token or student ID found" };
 
-    return await safeFetch(`${API_LINK}/class/${classID}/enroll`, {
+    return await safeFetch(`${API_LINK}/student/class/${classID}/enroll`, {
         method: "POST",
         headers: { 
             "Authorization": `Bearer ${token}`,
@@ -312,6 +312,20 @@ async function unenrollFromClass(classID) {
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
         }
+    });
+}
+
+
+// 📌 Student Fetch Enrolled Classes Function
+async function getStudentClasses() {
+    const token = sessionStorage.getItem("access_token");
+    const studentID = sessionStorage.getItem("userID");
+
+    if (!token || !studentID) return { error: "Unauthorized access: No token or student ID found" };
+
+    return await safeFetch(`${API_LINK}/student/classes`, { // ✅ Fetch only enrolled classes
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
     });
 }
 
@@ -650,6 +664,7 @@ export {
     getUserInfo,
     enrollInClass, 
     unenrollFromClass,
+    getStudentClasses,
     getClasses, 
     createClass, 
     deleteClass,

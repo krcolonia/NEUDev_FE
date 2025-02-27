@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLaptopCode, faDesktop, faBars } from '@fortawesome/free-solid-svg-icons';
 import '/src/style/student/dashboard.css';
 
-import { logout, getProfile, getClasses, enrollInClass } from '../api/API.js'; // Import API functions
+import { logout, getProfile, getClasses, enrollInClass, getStudentClasses } from '../api/API.js'; // Import API functions
 
 export const StudentDashboardComponent = () => {
     const defaultProfileImage = '/src/assets/noy.png';
@@ -33,14 +33,16 @@ export const StudentDashboardComponent = () => {
         };
 
         const fetchStudentClasses = async () => {
-            const response = await getClasses();
-            console.log("📥 Fetched Classes:", response);
+            const response = await getStudentClasses(); // ✅ Fetch only enrolled classes
+            console.log("📥 Fetched Enrolled Classes:", response);
             if (!response.error) {
                 setClasses(response);
             } else {
-                console.error("❌ Failed to fetch classes:", response.error);
+                console.error("❌ Failed to fetch enrolled classes:", response.error);
             }
         };
+    
+
 
         fetchProfile();
         fetchStudentClasses();
@@ -137,7 +139,7 @@ export const StudentDashboardComponent = () => {
                                     <Card.Img variant='top' src='/src/assets/univ.png' />
                                     <Card.Body>
                                         <Card.Text>
-                                            {classItem.className} <br /> {classItem.instructorName}
+                                            {classItem.className} <br /> {classItem.teacherID}
                                         </Card.Text>
                                     </Card.Body>
                                 </Card>
