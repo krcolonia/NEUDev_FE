@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import "../../style/teacher/activityItems.css";
 import { ProfilePlaygroundNavbarComponent } from "../ProfilePlaygroundNavbarComponent.jsx";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCaretDown, faEllipsisV, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 
 // ----- Import your API functions -----
 import {
@@ -10,7 +12,8 @@ import {
   updateQuestion,
   deleteQuestion,
   getItemTypes,
-  getProgrammingLanguages
+  getProgrammingLanguages,
+  verifyPassword
 } from "../api/API.js";
 
 /**
@@ -18,8 +21,8 @@ import {
  */
 const programmingLanguageMap = {
   Java:   { name: "Java",   image: "/src/assets/java2.png" },
-  "C#":   { name: "C#",     image: "/src/assets/c.png"     },
-  Python: { name: "Python", image: "/src/assets/py.png"    },
+  "C#":   { name: "C#",     image: "/src/assets/c.png" },
+  Python: { name: "Python", image: "/src/assets/py.png" },
 };
 
 /**
@@ -37,7 +40,6 @@ function formatDateTime(isoString) {
     hour12: true,
   };
   let localStr = dateObj.toLocaleString("en-US", options);
-  // remove space before AM/PM => "9:45PM"
   localStr = localStr.replace(/\s(AM|PM)$/, "$1");
   return localStr;
 }
@@ -55,9 +57,6 @@ const compilerCodeMap = {
  * Basic code validation patterns
  */
 const codeValidationPatterns = {
-  // Java:   /\b(public\s+class\s+\w+|System\.out\.println|import\s+java\.)\b/i,
-  // "C#":   /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/i,
-  // Python: /\b(print\s*\(|def\s+\w+\(|import\s+\w+|class\s+\w+|if\s+|while\s+|for\s+\w+\s+in)\b/i,
   'Java': /\b(public\s+class\s+\w+|System\.out\.println|import\s+java\.)\b/,
   'Python': /\b(print\s*\(|def\s+\w+\(|import\s+\w+|class\s+\w+|for\s+\w+\s+in|while\s+|if\s+)/,
   'C#': /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/
@@ -65,7 +64,7 @@ const codeValidationPatterns = {
 
 function isValidCodeForLanguage(code, languageName) {
   const pattern = codeValidationPatterns[languageName];
-  if (!pattern) return true; // if no pattern is set, skip
+  if (!pattern) return true;
   return pattern.test(code.trim());
 }
 
@@ -88,17 +87,23 @@ export default function TeacherQuestionBankComponent() {
     questionID: null,
     questionName: "",
     questionDesc: "",
-    difficulty: "Beginner",
+    questionDifficulty: "Beginner",
     progLangIDs: [],
     testCases: [],
+    // questionPoints will be computed automatically from testCases
+    questionPoints: 0
   });
+
+  // -------------------- New State for Password Verification --------------------
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
 
   // -------------------- Code Testing --------------------
   const [code, setCode] = useState("// Write your sample solution here");
-  const [testLangID, setTestLangID] = useState(null); // which language to compile
+  const [testLangID, setTestLangID] = useState(null);
   const [compiling, setCompiling] = useState(false);
-  const [rawOutput, setRawOutput] = useState(""); // single-run output or error
-  const [runtimeInput, setRuntimeInput] = useState(""); // user-provided input each run
+  const [rawOutput, setRawOutput] = useState("");
+  const [runtimeInput, setRuntimeInput] = useState("");
 
   // -------------------- Lifecycle: Fetch Data --------------------
   useEffect(() => {
@@ -112,7 +117,6 @@ export default function TeacherQuestionBankComponent() {
     }
   }, [selectedItemType]);
 
-  // If the create/edit modal is open, pick a default test language if any are selected
   useEffect(() => {
     if (showCreateModal || showEditModal) {
       if (questionData.progLangIDs.length > 0) {
@@ -120,7 +124,7 @@ export default function TeacherQuestionBankComponent() {
       } else {
         setTestLangID(null);
       }
-      setRuntimeInput(""); // reset input field
+      setRuntimeInput("");
     }
   }, [showCreateModal, showEditModal, questionData.progLangIDs]);
 
@@ -169,14 +173,30 @@ export default function TeacherQuestionBankComponent() {
     }
   }
 
-  // -------------------- CRUD: Delete Question --------------------
+  // -------------------- CRUD: Delete Question with Password Verification --------------------
   async function handleDelete() {
     if (!questionData.questionID) return;
+
+    const teacherEmail = sessionStorage.getItem("user_email");
+    if (!teacherEmail) {
+      alert("Teacher email not found. Please log in again.");
+      return;
+    }
+
+    // Verify the teacher's password using the API function
+    const verification = await verifyPassword(teacherEmail, deletePassword);
+    if (verification.error) {
+      alert(verification.error);
+      return;
+    }
+
     const resp = await deleteQuestion(questionData.questionID);
     if (!resp.error) {
+      alert("Question deleted successfully.");
       setQuestions((prev) => (prev || []).filter(q => q.questionID !== questionData.questionID));
       fetchQuestions(selectedItemType);
       setShowDeleteModal(false);
+      setDeletePassword("");
     } else {
       alert(resp.error);
     }
@@ -184,21 +204,40 @@ export default function TeacherQuestionBankComponent() {
 
   // -------------------- CRUD: Create or Update Question --------------------
   async function handleCreateOrUpdate() {
-    // Validate the question data
+    // Basic validation
     if (!questionData.questionName.trim() ||
         !questionData.questionDesc.trim() ||
         questionData.progLangIDs.length === 0) {
       alert("Please fill in all required fields (name, description, at least one language).");
       return;
     }
+    // Enforce at least one test case.
+    if ((questionData.testCases || []).length === 0) {
+      alert("Please add at least one test case for this question.");
+      return;
+    }
+    // Ensure each test case has a valid testCasePoints value.
+    for (let i = 0; i < questionData.testCases.length; i++) {
+      const tc = questionData.testCases[i];
+      if (tc.testCasePoints === "" || isNaN(Number(tc.testCasePoints)) || Number(tc.testCasePoints) < 0) {
+        alert(`Please enter a valid points value for test case ${i + 1}.`);
+        return;
+      }
+    }
+
+    // Compute questionPoints as the sum of test case points
+    const computedQuestionPoints = questionData.testCases.reduce(
+      (sum, tc) => sum + Number(tc.testCasePoints || 0),
+      0
+    );
 
     const payload = {
       itemTypeID: selectedItemType,
       progLangIDs: questionData.progLangIDs,
       questionName: questionData.questionName.trim(),
       questionDesc: questionData.questionDesc.trim(),
-      difficulty: questionData.difficulty,
-      // Keep test cases that have either input or output
+      questionDifficulty: questionData.questionDifficulty,
+      questionPoints: computedQuestionPoints,
       testCases: questionData.testCases.filter(tc =>
         tc.inputData.trim() !== "" || tc.expectedOutput.trim() !== ""
       ),
@@ -206,10 +245,8 @@ export default function TeacherQuestionBankComponent() {
 
     let resp;
     if (showCreateModal) {
-      // Create
       resp = await createQuestion(payload);
     } else if (showEditModal) {
-      // Update
       if (!questionData.questionID) {
         alert("No question selected to update.");
         return;
@@ -232,7 +269,7 @@ export default function TeacherQuestionBankComponent() {
     setQuestionData({ ...questionData, testCases: updated });
   }
 
-  // -------------------- Run Code Once -> Create a Single Test Case ONLY if success --------------------
+  // -------------------- Run Code Once --------------------
   async function handleRunCode() {
     if (!testLangID) {
       alert("Please select which language to test with.");
@@ -244,7 +281,6 @@ export default function TeacherQuestionBankComponent() {
       return;
     }
 
-    // Optional code-lint check
     if (!isValidCodeForLanguage(code, foundLang.progLangName)) {
       alert(`Your code does not look like valid ${foundLang.progLangName} code.`);
       return;
@@ -278,27 +314,22 @@ export default function TeacherQuestionBankComponent() {
       const data = await response.json();
       console.log("[Compiler Response]", response.status, data);
 
-      // 1) Check HTTP status
-      // 2) Also check if `data.error` is present
       if (!response.ok || data.error) {
-        // If the code fails to compile or run, show the error in rawOutput
         let errorMsg = data.error || data.stderr || "Something went wrong";
         setRawOutput(`Error: ${errorMsg}`);
-        // ❌ DO NOT add a new test case
       } else {
-        // The code ran successfully
         const actualOutput = (data.output || "").trim();
-        // If it's empty, let's label it as "(No output returned...)"
         const finalOutput = actualOutput.length > 0
           ? actualOutput
           : "(No output returned by the compiler)";
-
         setRawOutput(finalOutput);
 
-        // ✅ Only add the test case if there's no error
+        // Add new test case with runtime input and finalOutput;
+        // testCasePoints is left empty for the teacher to fill in.
         const newTC = {
           inputData: runtimeInput,
           expectedOutput: finalOutput,
+          testCasePoints: "" // teacher must now fill this in manually
         };
         setQuestionData({
           ...questionData,
@@ -309,7 +340,7 @@ export default function TeacherQuestionBankComponent() {
       setRawOutput(`Exception: ${error.message}`);
     } finally {
       setCompiling(false);
-      setShowOutputModal(true); // Show the single-run output (or error)
+      setShowOutputModal(true);
     }
   }
 
@@ -326,14 +357,14 @@ export default function TeacherQuestionBankComponent() {
           <button
             className="create-btn"
             onClick={() => {
-              // Reset everything for creating a new question
               setQuestionData({
                 questionID: null,
                 questionName: "",
                 questionDesc: "",
-                difficulty: "Beginner",
+                questionDifficulty: "Beginner",
                 progLangIDs: [],
                 testCases: [],
+                questionPoints: 0,
               });
               setCode("// Write your sample solution here");
               setRuntimeInput("");
@@ -373,6 +404,7 @@ export default function TeacherQuestionBankComponent() {
             <tr>
               <th>QUESTION NAME</th>
               <th>DIFFICULTY</th>
+              <th>POINTS</th>
               <th>LANGUAGES</th>
               <th>TEST CASES</th>
               <th>DATE &amp; TIME CREATED</th>
@@ -382,7 +414,7 @@ export default function TeacherQuestionBankComponent() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="6" style={{ textAlign: "center" }}>Loading...</td>
+                <td colSpan="7" style={{ textAlign: "center" }}>Loading...</td>
               </tr>
             ) : questions.length > 0 ? (
               questions.map((q) => {
@@ -390,7 +422,8 @@ export default function TeacherQuestionBankComponent() {
                 return (
                   <tr key={q.questionID}>
                     <td>{q.questionName}</td>
-                    <td>{q.difficulty}</td>
+                    <td>{q.questionDifficulty}</td>
+                    <td>{q.questionPoints || "-"}</td>
                     <td>
                       {progLangArray.length > 0
                         ? progLangArray.map((langObj, idx) => {
@@ -431,12 +464,14 @@ export default function TeacherQuestionBankComponent() {
                             questionID: q.questionID,
                             questionName: q.questionName,
                             questionDesc: q.questionDesc,
-                            difficulty: q.difficulty,
+                            questionDifficulty: q.questionDifficulty,
                             progLangIDs: plIDs,
                             testCases: (q.test_cases || []).map(tc => ({
                               inputData: tc.inputData,
-                              expectedOutput: tc.expectedOutput
+                              expectedOutput: tc.expectedOutput,
+                              testCasePoints: tc.testCasePoints ?? ""
                             })),
+                            questionPoints: q.questionPoints || 0
                           });
                           setCode("// Write your sample solution here");
                           setRuntimeInput("");
@@ -450,7 +485,21 @@ export default function TeacherQuestionBankComponent() {
                       <button
                         className="delete-btn"
                         onClick={() => {
-                          setQuestionData(q);
+                          const plIDs = (q.programming_languages || []).map(l => l.progLangID);
+                          setQuestionData({
+                            questionID: q.questionID,
+                            questionName: q.questionName,
+                            questionDesc: q.questionDesc,
+                            questionDifficulty: q.questionDifficulty,
+                            progLangIDs: plIDs,
+                            testCases: (q.test_cases || []).map(tc => ({
+                              inputData: tc.inputData,
+                              expectedOutput: tc.expectedOutput,
+                              testCasePoints: tc.testCasePoints ?? ""
+                            })),
+                            questionPoints: q.questionPoints || 0
+                          });
+                          setDeletePassword("");
                           setShowDeleteModal(true);
                         }}
                       >
@@ -462,7 +511,7 @@ export default function TeacherQuestionBankComponent() {
               })
             ) : (
               <tr>
-                <td colSpan="6" style={{ textAlign: "center" }}>
+                <td colSpan="7" style={{ textAlign: "center" }}>
                   No questions found.
                 </td>
               </tr>
@@ -478,7 +527,7 @@ export default function TeacherQuestionBankComponent() {
           setShowCreateModal(false);
           setShowEditModal(false);
         }}
-        backdrop='static' 
+        backdrop="static" 
         keyboard={false}
         size="lg"
       >
@@ -518,15 +567,30 @@ export default function TeacherQuestionBankComponent() {
             <Form.Group className="mb-3">
               <Form.Label>Difficulty</Form.Label>
               <Form.Select
-                value={questionData.difficulty}
+                value={questionData.questionDifficulty}
                 onChange={(e) =>
-                  setQuestionData({ ...questionData, difficulty: e.target.value })
+                  setQuestionData({ ...questionData, questionDifficulty: e.target.value })
                 }
               >
                 <option value="Beginner">Beginner</option>
                 <option value="Intermediate">Intermediate</option>
                 <option value="Advanced">Advanced</option>
               </Form.Select>
+            </Form.Group>
+
+            {/* Auto-calculated Question Points */}
+            <Form.Group className="mb-3">
+              <Form.Label>Total Question Points (auto-calculated from test cases)</Form.Label>
+              <Form.Control
+                type="number"
+                value={
+                  questionData.testCases.reduce(
+                    (sum, tc) => sum + Number(tc.testCasePoints || 0),
+                    0
+                  )
+                }
+                readOnly
+              />
             </Form.Group>
 
             {/* Programming Languages */}
@@ -567,48 +631,59 @@ export default function TeacherQuestionBankComponent() {
                       updated = [...current, lang.progLangID];
                     }
                     setQuestionData({ ...questionData, progLangIDs: updated });
-                    // If removing the testLangID from the set, reset it
                     if (testLangID === lang.progLangID) setTestLangID(null);
                   }}
                 />
               ))}
             </Form.Group>
 
-            {/* Show existing test cases (with a remove button) */}
+            {/* Existing Test Cases */}
             <Form.Group className="mb-3">
               <Form.Label>Test Cases (added after each successful run)</Form.Label>
               {(questionData.testCases || []).map((tc, index) => (
-                <div
-                  key={index}
-                  style={{
-                    border: "1px solid #ddd",
-                    padding: "10px",
-                    marginBottom: "10px"
-                  }}
-                >
-                  <Form.Control
-                    type="text"
-                    placeholder="Input Data"
-                    value={tc.inputData}
-                    readOnly
-                    style={{ marginBottom: "5px" }}
-                  />
-                  <Form.Control
-                    type="text"
-                    placeholder="Expected Output"
-                    value={tc.expectedOutput}
-                    readOnly
-                  />
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    style={{ marginTop: "5px" }}
-                    onClick={() => handleRemoveTestCase(index)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
+  <div
+    key={index}
+    style={{
+      border: "1px solid #ddd",
+      padding: "10px",
+      marginBottom: "10px"
+    }}
+  >
+    <Form.Control
+      type="text"
+      placeholder="Input Data"
+      value={tc.inputData}
+      readOnly
+      style={{ marginBottom: "5px" }}
+    />
+    <Form.Control
+      type="text"
+      placeholder="Expected Output"
+      value={tc.expectedOutput}
+      readOnly
+      style={{ marginBottom: "5px" }}
+    />
+    <Form.Control
+      type="number"
+      placeholder="Enter points for this test case"
+      value={tc.testCasePoints ?? ""}
+      onChange={(e) => {
+        const updatedTestCases = [...questionData.testCases];
+        updatedTestCases[index].testCasePoints = e.target.value;
+        setQuestionData({ ...questionData, testCases: updatedTestCases });
+      }}
+    />
+    <Button
+      variant="outline-danger"
+      size="sm"
+      style={{ marginTop: "5px" }}
+      onClick={() => handleRemoveTestCase(index)}
+    >
+      Remove
+    </Button>
+  </div>
+))}
+
             </Form.Group>
 
             {/* Code Editor */}
@@ -622,7 +697,6 @@ export default function TeacherQuestionBankComponent() {
               />
             </Form.Group>
 
-            {/* If multiple languages, let them pick which one to test */}
             {questionData.progLangIDs.length > 1 && (
               <Form.Group className="mb-3">
                 <Form.Label>Select Language to Test This Code</Form.Label>
@@ -643,7 +717,6 @@ export default function TeacherQuestionBankComponent() {
               </Form.Group>
             )}
 
-            {/* A single field for the teacher to specify input each time they run the code */}
             <Form.Group className="mb-3">
               <Form.Label>Runtime Input (for this run)</Form.Label>
               <Form.Control
@@ -677,7 +750,7 @@ export default function TeacherQuestionBankComponent() {
         </Modal.Footer>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* -------------------- Delete Confirmation Modal with Password -------------------- */}
       <Modal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -687,7 +760,24 @@ export default function TeacherQuestionBankComponent() {
           <Modal.Title>Delete Question</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          Are you sure you want to delete the question “{questionData.questionName}”?
+          <p>Are you sure you want to delete the question “{questionData.questionName}”?</p>
+          <Form.Group controlId="deletePassword">
+            <Form.Label>Enter your password</Form.Label>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <Form.Control
+                type={showDeletePassword ? "text" : "password"}
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+              />
+              <Button
+                variant="outline-secondary"
+                onClick={() => setShowDeletePassword(!showDeletePassword)}
+                style={{ marginLeft: "5px" }}
+              >
+                <FontAwesomeIcon icon={showDeletePassword ? faEyeSlash : faEye} />
+              </Button>
+            </div>
+          </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>

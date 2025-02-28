@@ -13,7 +13,7 @@ import {
   verifyPassword   // <-- Imported here from your API module
 } from "../api/API"; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCaretDown, faEllipsisV, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import { faCaretDown, faEllipsisV, faEye, faEyeSlash, faClock } from '@fortawesome/free-solid-svg-icons';
 
 // Mapping of known programming language IDs to names and images
 const programmingLanguageMap = {
@@ -86,9 +86,10 @@ export const TeacherClassManagementComponent = () => {
   const [editFormData, setEditFormData] = useState({
     actTitle: '',
     actDesc: '',
-    difficulty: '',
+    actDifficulty: '',
     openDate: '',
     closeDate: '',
+    // maxPoints will be computed automatically now
     maxPoints: '',
     questions: ['', '', '']
   });
@@ -276,9 +277,10 @@ export const TeacherClassManagementComponent = () => {
 
   const handleSaveQuestion = () => {
     if (selectedQuestion === null || selectedQuestionIndex === null) return;
+    // Check if the same question is already picked
     const duplicate = editFormData.questions.some((q, i) =>
       i !== selectedQuestionIndex &&
-      q.questionName.trim() === selectedQuestion.questionName.trim()
+      q.questionID === selectedQuestion.questionID
     );
     if (duplicate) {
       alert("❌ You already picked that question. Please choose a different one.");
@@ -288,7 +290,8 @@ export const TeacherClassManagementComponent = () => {
     updatedQuestions[selectedQuestionIndex] = {
       questionID: selectedQuestion.questionID,
       questionName: selectedQuestion.questionName,
-      itemTypeID: selectedQuestion.itemTypeID
+      itemTypeID: selectedQuestion.itemTypeID,
+      questionPoints: selectedQuestion.questionPoints // store the points
     };
     setEditFormData({ ...editFormData, questions: updatedQuestions });
     setSelectedQuestion(null);
@@ -298,7 +301,12 @@ export const TeacherClassManagementComponent = () => {
   const handleRemoveQuestion = () => {
     if (selectedQuestionIndex !== null) {
       const updatedQuestions = [...(editFormData.questions || [])];
-      updatedQuestions[selectedQuestionIndex] = { questionID: null, questionName: "", itemTypeID: null };
+      updatedQuestions[selectedQuestionIndex] = {
+        questionID: null,
+        questionName: "",
+        itemTypeID: null,
+        questionPoints: 0
+      };
       setEditFormData({ ...editFormData, questions: updatedQuestions });
       setSelectedQuestion(null);
       setShowQuestionModal(false);
@@ -337,45 +345,70 @@ export const TeacherClassManagementComponent = () => {
       existingQuestions = activity.questions.map(q => ({
         questionID: q?.question?.questionID || null,
         questionName: q?.question?.questionName || "",
-        itemTypeID: q?.itemTypeID || null
+        itemTypeID: q?.itemTypeID || null,
+        questionPoints: q?.question?.questionPoints || 0
       }));
     }
     while (existingQuestions.length < 3) {
-      existingQuestions.push({ questionID: null, questionName: "", itemTypeID: null });
+      existingQuestions.push({ questionID: null, questionName: "", itemTypeID: null, questionPoints: 0 });
+    }
+    // Convert actDuration (HH:MM:SS) to total minutes
+    let totalMinutes = "";
+    if (activity.actDuration) {
+      // Extract hours and minutes; ignore seconds.
+      const parts = activity.actDuration.split(":");
+      if (parts.length >= 2) {
+        totalMinutes = String(parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10));
+      }
     }
     setEditFormData({
       actTitle: activity.actTitle || '',
       actDesc: activity.actDesc || '',
-      difficulty: activity.difficulty || '',
+      actDifficulty: activity.actDifficulty || '',
       openDate: activity.openDate ? activity.openDate.slice(0, 16) : '',
       closeDate: activity.closeDate ? activity.closeDate.slice(0, 16) : '',
       maxPoints: activity.maxPoints ? activity.maxPoints.toString() : '',
+      actDuration: totalMinutes,  // Store total minutes as a string
       questions: existingQuestions
     });
     const existingLangIDs = (activity.programming_languages || []).map(lang => lang.progLangID);
     setEditSelectedProgLangs(existingLangIDs);
     setShowEditModal(true);
-  };
+  };  
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!selectedActivity) return;
+    // Compute total points from selected questions
+    const computedPoints = editFormData.questions
+      .filter(q => q && q.questionPoints)
+      .reduce((sum, q) => sum + q.questionPoints, 0);
+  
+    // Convert the numeric minutes to HH:MM:SS format
+    const total = parseInt(editFormData.actDuration, 10);
+    const hh = String(Math.floor(total / 60)).padStart(2, "0");
+    const mm = String(total % 60).padStart(2, "0");
+    const ss = "00"; // fixed seconds
+    const finalDuration = `${hh}:${mm}:${ss}`;
+  
     const updatedActivity = {
       actTitle: editFormData.actTitle,
       actDesc: editFormData.actDesc,
-      difficulty: editFormData.difficulty,
+      actDifficulty: editFormData.actDifficulty,
       openDate: editFormData.openDate || selectedActivity.openDate,
       closeDate: editFormData.closeDate,
-      maxPoints: parseInt(editFormData.maxPoints),
+      actDuration: finalDuration, // Use the converted duration
+      maxPoints: computedPoints, // automatically computed
       progLangIDs: editSelectedProgLangs,
       questions: editFormData.questions
         .filter(q => q.questionName.trim() !== '')
         .map(q => ({
           questionID: q.questionID,
-          itemTypeID: q.itemTypeID
+          itemTypeID: q.itemTypeID,
+          actQuestionPoints: q.questionPoints
         }))
     };
-
+  
     try {
       const response = await editActivity(selectedActivity.actID, updatedActivity);
       if (!response.error) {
@@ -396,6 +429,7 @@ export const TeacherClassManagementComponent = () => {
       console.error("Error editing activity:", err);
     }
   };
+  
 
   // -------------------- Helper: Format Date String --------------------
   const formatDateString = (dateString) => {
@@ -511,6 +545,11 @@ export const TeacherClassManagementComponent = () => {
                               <strong>Time Left: </strong>
                               <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
                             </div>
+                            {/* NEW: Display Activity Duration with Clock Icon */}
+                            <div>
+                              <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
+                              Duration: {activity.actDuration ? activity.actDuration : "N/A"}
+                            </div>
                           </div>
                         </Col>
                         <Col className='activity-stats'>
@@ -603,11 +642,16 @@ export const TeacherClassManagementComponent = () => {
                               <strong>Time Left: </strong>
                               <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
                             </p>
+                            {/* NEW: Display Activity Duration with Clock Icon */}
+                            <div>
+                              <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
+                              Duration: {activity.actDuration ? activity.actDuration : "N/A"}
+                            </div>
                           </div>
                         </Col>
                         <Col className='activity-stats'>
                           <div className='score-chart'>
-                            <h4>{activity.classAvgScore ?? "N/A"}%</h4>
+                            <h4>{activity.classAvgScore ?? "N/A"}</h4>
                             <p>Class Avg. Score</p>
                           </div>
                           <div className='score-chart'>
@@ -655,8 +699,8 @@ export const TeacherClassManagementComponent = () => {
               <Form.Label>Difficulty</Form.Label>
               <Form.Control 
                 as="select" 
-                value={editFormData.difficulty} 
-                onChange={(e) => setEditFormData({ ...editFormData, difficulty: e.target.value })}
+                value={editFormData.actDifficulty} 
+                onChange={(e) => setEditFormData({ ...editFormData, actDifficulty: e.target.value })}
                 required
               >
                 <option value="">Select Difficulty</option>
@@ -683,7 +727,18 @@ export const TeacherClassManagementComponent = () => {
                 required
               />
             </Form.Group>
-            <Form.Group className="mt-3">
+            {/* NEW: Duration Input as Time */}
+            <Form.Group controlId="formDuration" className="mt-3">
+              <Form.Label>Activity Duration (in minutes)</Form.Label>
+              <Form.Control 
+                type="number"
+                min="0"
+                value={editFormData.actDuration || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, actDuration: e.target.value })}
+                required
+              />
+            </Form.Group>
+            <Form.Group controlId="formSelectProgLang" className="mt-3">
               <Form.Label>Select Programming Languages</Form.Label>
               <div style={{ marginBottom: "0.5rem" }}>
                 <Form.Check 
@@ -707,13 +762,15 @@ export const TeacherClassManagementComponent = () => {
               ))}
             </Form.Group>
             <Form.Group controlId="formMaxPoints" className="mt-3">
-              <Form.Label>Total Points</Form.Label>
+              <Form.Label>Total Points (automatically computed)</Form.Label>
               <Form.Control 
                 type="number" 
-                placeholder="Enter total points" 
-                value={editFormData.maxPoints} 
-                onChange={(e) => setEditFormData({ ...editFormData, maxPoints: e.target.value })}
-                required 
+                value={
+                  editFormData.questions
+                    .filter(q => q && q.questionPoints)
+                    .reduce((sum, q) => sum + q.questionPoints, 0)
+                }
+                readOnly
               />
             </Form.Group>
             <Form.Group className="mt-3">
@@ -723,7 +780,11 @@ export const TeacherClassManagementComponent = () => {
                   key={index}
                   type="text"
                   placeholder={`Question ${index + 1}`}
-                  value={q.questionName}
+                  value={
+                    q.questionName
+                      ? `${q.questionName} - ${q.questionPoints || 0} pts`
+                      : ""
+                  }
                   readOnly
                   onClick={() => handleQuestionClick(index)}
                   className="mt-2"
@@ -782,7 +843,7 @@ export const TeacherClassManagementComponent = () => {
                 className={`question-item d-block ${selectedQuestion === pq ? 'highlighted' : ''}`} 
                 onClick={() => setSelectedQuestion(pq)}
               >
-                {pq.questionName} - {pq.difficulty}
+                {pq.questionName} - {pq.questionDifficulty} - {pq.questionPoints} pts
               </Button>
             ))}
           </Modal.Body>

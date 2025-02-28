@@ -310,3 +310,46 @@ body {
   background-color: transparent !important;
   overflow: hidden;
 }
+
+.activity-header {
+  background-color: #fff;
+  padding: 1rem;
+}
+
+.header-content {
+  display: flex;
+  align-items: flex-start;
+}
+
+.left-indicator {
+  width: 4px;
+  background-color: red;
+  margin-right: 1rem;
+}
+
+.activity-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.activity-title {
+  margin: 0;
+  color: #e65800;
+}
+
+.points {
+  color: #e65800;
+}
+
+.activity-description {
+  margin-top: 0.5rem;
+  text-align: justify;
+  color: #333;
+  line-height: 1.5;
+}
+
+.menu-icon {
+  margin-left: auto;
+}
+

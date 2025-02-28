@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react'; 
 import { useNavigate, useParams } from 'react-router-dom';
 import { Row, Tabs, Col, Tab, Modal, Button } from 'react-bootstrap';
 import StudentCMNavigationBarComponent from './StudentCMNavigationBarComponent';
 import "../../style/teacher/cmActivities.css"; 
 import { getStudentActivities } from "../api/API"; 
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faClock } from '@fortawesome/free-solid-svg-icons';
 
 // Mapping of known programming languages to icons
 const programmingLanguageMap = {
@@ -40,7 +42,9 @@ const Timer = ({ openDate, closeDate }) => {
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        const formatted = `${hours.toString().padStart(2, '0')}:${minutes
+          .toString()
+          .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         setTimeLeft(formatted);
         setIsTimeLow(diff <= 10 * 60 * 1000);
       }
@@ -50,7 +54,12 @@ const Timer = ({ openDate, closeDate }) => {
   }, [openDate, closeDate]);
 
   return (
-    <span style={{ color: isTimeLow ? "red" : "inherit", fontWeight: isTimeLow ? "bold" : "normal" }}>
+    <span 
+      style={{ 
+        color: isTimeLow ? "red" : "inherit", 
+        fontWeight: isTimeLow ? "bold" : "normal" 
+      }}
+    >
       {timeLeft}
     </span>
   );
@@ -59,6 +68,7 @@ const Timer = ({ openDate, closeDate }) => {
 export const StudentClassManagementComponent = () => {
   const navigate = useNavigate();
   const { classID } = useParams();
+
   // Tab states
   const [contentKey, setContentKey] = useState('ongoing');
 
@@ -67,9 +77,13 @@ export const StudentClassManagementComponent = () => {
   const [completedActivities, setCompletedActivities] = useState([]);
   const [upcomingActivities, setUpcomingActivities] = useState([]);
 
-  // Modal states
+  // Modal states for finished activities
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
+
+  // NEW: Modal state for "Take Activity" confirmation
+  const [showTakeModal, setShowTakeModal] = useState(false);
+  const [selectedActivityForAssessment, setSelectedActivityForAssessment] = useState(null);
 
   useEffect(() => {
     fetchActivities();
@@ -84,10 +98,11 @@ export const StudentClassManagementComponent = () => {
       const response = await getStudentActivities();
       console.log("🟢 API Response:", response);
       if (!response || response.error) {
-        console.error("❌ Failed to fetch activities:", response.error);
+        console.error("❌ Failed to fetch activities:", response?.error);
         return;
       }
       const now = new Date();
+
       // Filter activities using openDate and closeDate
       const upcoming = response.ongoing.filter(act => new Date(act.openDate) > now);
       const ongoing  = response.ongoing.filter(
@@ -109,7 +124,8 @@ export const StudentClassManagementComponent = () => {
   };
 
   // Handle click on an activity.
-  // If the activity's closeDate has passed, show a modal; otherwise, navigate.
+  // If the activity's closeDate has passed, show a modal.
+  // Otherwise, show a confirmation modal to take the activity.
   const handleActivityClick = (activity) => {
     const now = new Date();
     const activityClose = new Date(activity.closeDate);
@@ -117,7 +133,8 @@ export const StudentClassManagementComponent = () => {
       setModalMessage("This activity is finished and can no longer be accessed.");
       setShowModal(true);
     } else {
-      navigate(`/student/class/${classID}/activity/${activity.actID}/items`);
+      setSelectedActivityForAssessment(activity);
+      setShowTakeModal(true);
     }
   };
 
@@ -181,6 +198,8 @@ export const StudentClassManagementComponent = () => {
             <Tab eventKey="ongoing" title="Ongoing"></Tab>
             <Tab eventKey="completed" title="Completed"></Tab>
           </Tabs>
+
+          {/* Ongoing Activities */}
           {contentKey === "ongoing" && (
             <div className='ongoing-class-activities'>
               {ongoingActivities.length === 0 ? (
@@ -200,8 +219,9 @@ export const StudentClassManagementComponent = () => {
                           <div className='class-activity-details'>
                             <h3>{activity.actTitle}</h3>
                             <p><strong>Professor:</strong> {activity.teacherName}</p>
+                            <p className="activity-description">{activity.actDesc}</p>
                             {renderLanguages(languages)}
-                            <h6><strong>Difficulty:</strong> {activity.difficulty || "N/A"}</h6>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "N/A"}</h6>
                             <p>
                               <i className='bi bi-calendar-check'></i>{" "}
                               Open Date: {formatDateString(activity.openDate)}
@@ -224,14 +244,17 @@ export const StudentClassManagementComponent = () => {
                           <div className='score-chart'>
                             <h4>
                               {activity.overallScore !== null 
-                                ? `${activity.overallScore} / 100` 
-                                : "N/A"}
+                                ? `${activity.overallScore} / ${activity.maxPoints ?? "N/A"}`
+                                : `N/A / ${activity.maxPoints ?? "N/A"}`}
                             </h4>
                             <p>Overall Score</p>
                           </div>
+                          {/* Show duration with "min" appended */}
                           <div className='score-chart'>
-                            <h4>{activity.duration ?? "N/A"}</h4>
-                            <p>Duration Taken</p>
+                            <h4>
+                              {activity.actDuration ? activity.actDuration : "N/A"}
+                            </h4>
+                            <p>Duration</p>
                           </div>
                         </Col>
                       </Row>
@@ -241,6 +264,8 @@ export const StudentClassManagementComponent = () => {
               )}
             </div>
           )}
+
+          {/* Completed Activities */}
           {contentKey === "completed" && (
             <div className='completed-class-activities'>
               {completedActivities.length === 0 ? (
@@ -261,7 +286,7 @@ export const StudentClassManagementComponent = () => {
                             <h3>{activity.actTitle}</h3>
                             <p><strong>Professor:</strong> {activity.teacherName}</p>
                             {renderLanguages(languages)}
-                            <h6><strong>Difficulty:</strong> {activity.difficulty || "N/A"}</h6>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "N/A"}</h6>
                             <p>
                               <i className='bi bi-calendar-check'></i>{" "}
                               Open Date: {formatDateString(activity.openDate)}
@@ -284,14 +309,17 @@ export const StudentClassManagementComponent = () => {
                           <div className='score-chart'>
                             <h4>
                               {activity.overallScore !== null 
-                                ? `${activity.overallScore} / 100` 
-                                : "N/A"}
+                                ? `${activity.overallScore} / ${activity.maxPoints ?? "N/A"}`
+                                : `N/A / ${activity.maxPoints ?? "N/A"}`}
                             </h4>
                             <p>Overall Score</p>
                           </div>
+                          {/* Show duration with "min" appended */}
                           <div className='score-chart'>
-                            <h4>{activity.duration ?? "N/A"}</h4>
-                            <p>Duration Taken</p>
+                            <h4>
+                              {activity.actDuration ? activity.actDuration : "N/A"}
+                            </h4>
+                            <p>Duration</p>
                           </div>
                         </Col>
                       </Row>
@@ -303,6 +331,7 @@ export const StudentClassManagementComponent = () => {
           )}
         </div>
       </div>
+      
       {/* Modal for finished activity */}
       <Modal show={showModal} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
@@ -314,6 +343,38 @@ export const StudentClassManagementComponent = () => {
         <Modal.Footer>
           <Button variant="primary" onClick={() => setShowModal(false)}>
             Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+      
+      {/* NEW: Modal for confirming to take the activity */}
+      <Modal show={showTakeModal} onHide={() => setShowTakeModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Take Activity</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p>
+            Do you want to take the activity: <strong>{selectedActivityForAssessment?.actTitle}</strong>?
+          </p>
+          <p>
+            <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
+            Duration: {selectedActivityForAssessment?.actDuration 
+              ? selectedActivityForAssessment.actDuration + " min" 
+              : "N/A"}
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowTakeModal(false)}>
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={() => {
+              // Navigate to the assessment page
+              navigate(`/student/class/${classID}/activity/${selectedActivityForAssessment.actID}/assessment`);
+            }}
+          >
+            Yes, take activity
           </Button>
         </Modal.Footer>
       </Modal>

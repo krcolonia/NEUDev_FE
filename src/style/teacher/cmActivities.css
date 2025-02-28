@@ -280,3 +280,55 @@ body {
     padding-block: 15px;
     font-weight: 600;
 }
+
+/* The outer header container */
+.activity-header {
+    background-color: #fdf6f6; /* or your desired off-white color */
+    padding: 1rem;
+  }
+  
+  /* The main content inside the header */
+  .header-content {
+    display: flex;
+    align-items: flex-start; /* Align items to the top */
+  }
+  
+  /* The thin vertical red line on the left */
+  .left-indicator {
+    width: 4px;
+    background-color: #c42c2c; /* or another red shade */
+    margin-right: 1rem;
+  }
+  
+  /* Wrapper that holds the title and description side-by-side with the indicator */
+  .activity-info {
+    display: flex;
+    flex-direction: column; /* Stack title above description */
+    flex: 1;               /* Expand to fill the horizontal space */
+  }
+  
+  /* The activity title */
+  .activity-title {
+    margin: 0;
+    color: #e65800; /* or your chosen color for the title text */
+  }
+  
+  /* The points in parentheses */
+  .points {
+    color: #e65800;
+    font-weight: normal; /* Or bold, if you prefer */
+  }
+  
+  /* The description is justified */
+  .activity-description {
+    margin-top: 0.5rem;
+    text-align: justify; /* Key: justify the text */
+    color: #333;         /* A dark gray text color */
+    line-height: 1.5;
+  }
+  
+  /* The three-dots menu icon on the right */
+  .menu-icon {
+    margin-left: auto; /* push this icon to the far right */
+  }
+  

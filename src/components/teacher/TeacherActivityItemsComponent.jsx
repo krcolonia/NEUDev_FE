@@ -13,8 +13,7 @@ const programmingLanguageMap = {
 };
 
 const TeacherActivityItemsComponent = () => {
-  const { actID } = useParams();
-  const { classID } = useParams();
+  const { actID, classID } = useParams();
   const navigate = useNavigate();
   const [activity, setActivity] = useState(null);
   const [items, setItems] = useState([]);
@@ -34,12 +33,12 @@ const TeacherActivityItemsComponent = () => {
     try {
       const response = await getActivityItemsByTeacher(actID);
       if (!response.error) {
-        // If your backend also returns the activity’s languages, you can store them too
+        // Set basic activity info and questions
+        // The backend now returns: activityName, actDesc, maxPoints, questions
         setActivity({
           name: response.activityName,
+          description: response.actDesc, // <-- store the description here
           maxPoints: response.maxPoints,
-          // If the backend returns 'programming_languages' for the activity itself
-          // you can store them here. For now, we skip it if not needed.
         });
         setItems(response.questions || []);
       }
@@ -63,7 +62,8 @@ const TeacherActivityItemsComponent = () => {
       {activity && (
         <ActivityHeader 
           name={activity.name} 
-          points={activity.maxPoints}
+          description={activity.description}   // <-- pass description to ActivityHeader
+          actQuestionPoints={activity.maxPoints}
         />
       )}
 
@@ -93,10 +93,11 @@ const TeacherActivityItemsComponent = () => {
                 <strong>Description:</strong> {selectedQuestion.questionDesc}
               </p>
               <p>
-                <strong>Difficulty:</strong> {selectedQuestion.difficulty}
+                <strong>Difficulty:</strong> {selectedQuestion.questionDifficulty}
               </p>
-
-              {/* The important part: show the question’s languages from `programming_languages` */}
+              <p>
+                <strong>Points:</strong> {selectedQuestion.actQuestionPoints}
+              </p>
               <p>
                 <strong>Programming Languages:</strong>{" "}
                 {selectedQuestion.programming_languages && selectedQuestion.programming_languages.length > 0 ? (
@@ -124,14 +125,14 @@ const TeacherActivityItemsComponent = () => {
                   "N/A"
                 )}
               </p>
-
               <h6>Test Cases:</h6>
               {selectedQuestion.testCases && selectedQuestion.testCases.length > 0 ? (
                 <ol>
                   {selectedQuestion.testCases.map((tc, index) => (
                     <li key={index}>
                       <strong>Input:</strong> {tc.inputData || "None"} |{" "}
-                      <strong>Expected Output:</strong> {tc.expectedOutput}
+                      <strong>Expected Output:</strong> {tc.expectedOutput} |{" "}
+                      <strong>Points:</strong> {tc.testCasePoints}
                     </li>
                   ))}
                 </ol>
@@ -154,13 +155,22 @@ const TeacherActivityItemsComponent = () => {
 };
 
 // Activity Header Component
-const ActivityHeader = ({ name, points }) => (
+const ActivityHeader = ({ name, description, actQuestionPoints }) => (
   <header className="activity-header">
     <div className="header-content">
+      {/* Red vertical line on the left */}
       <div className="left-indicator"></div>
-      <h2 className="activity-title">
-        {name} <span className="points">({points} points)</span>
-      </h2>
+
+      {/* Title + Description container */}
+      <div className="activity-info">
+        <h2 className="activity-title">
+          {name} <span className="points">({actQuestionPoints} points)</span>
+        </h2>
+        {description && (
+          <p className="activity-description">{description}</p>
+        )}
+      </div>
+
       <div className="menu-icon">
         <i className="bi bi-three-dots"></i>
       </div>
@@ -178,6 +188,7 @@ const TableComponent = ({ items, loading, onRowClick }) => {
             <th>Question Name</th>
             <th>Difficulty</th>
             <th>Item Type</th>
+            <th>Points</th>
             <th>Avg. Student Score</th>
             <th>Avg. Student Time Spent</th>
           </tr>
@@ -191,10 +202,13 @@ const TableComponent = ({ items, loading, onRowClick }) => {
             items.map((item, index) => (
               <tr key={index} onClick={() => onRowClick(item)}>
                 <td>{item.questionName}</td>
-                <td>{item.difficulty}</td>
+                <td>{item.questionDifficulty}</td>
                 <td>{item.itemType}</td>
+                <td>{item.actQuestionPoints}</td>
                 <td>
-                  {item.avgStudentScore !== "-" ? `${item.avgStudentScore} / 100` : "- / 100"}
+                  {item.avgStudentScore !== "-"
+                    ? `${item.avgStudentScore} / ${item.actQuestionPoints}`
+                    : `- / ${item.actQuestionPoints}`}
                 </td>
                 <td>
                   {item.avgStudentTimeSpent !== "-" ? item.avgStudentTimeSpent : "-"}
@@ -211,5 +225,6 @@ const TableComponent = ({ items, loading, onRowClick }) => {
     </div>
   );
 };
+
 
 export default TeacherActivityItemsComponent;
