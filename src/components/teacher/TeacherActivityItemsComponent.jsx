@@ -14,6 +14,7 @@ const programmingLanguageMap = {
 
 const TeacherActivityItemsComponent = () => {
   const { actID } = useParams();
+  const { classID } = useParams();
   const navigate = useNavigate();
   const [activity, setActivity] = useState(null);
   const [items, setItems] = useState([]);
@@ -70,7 +71,7 @@ const TeacherActivityItemsComponent = () => {
 
       <button
         className="try-answer-button active"
-        onClick={() => navigate(`/teacher/class/activity/${actID}/assessment`)}
+        onClick={() => navigate(`/teacher/class/${classID}/activity/${actID}/assessment`)}
       >
         ✏️ Try Answering the Activity
       </button>

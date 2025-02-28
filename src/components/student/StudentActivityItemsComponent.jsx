@@ -5,7 +5,7 @@ import StudentAMNavigationBarComponent from "../student/StudentAMNavigationBarCo
 import { getActivityItemsByStudent } from "../api/API"; // ✅ Import API function
 
 const StudentActivityItemsComponent = () => {
-  const { actID } = useParams(); // ✅ Get actID from URL
+  const { classID, actID } = useParams(); // ✅ Get actID from URL
   const navigate = useNavigate();
   const [activity, setActivity] = useState(null); // ✅ Store activity details
   const [items, setItems] = useState([]); // ✅ Store activity items
@@ -47,7 +47,7 @@ const StudentActivityItemsComponent = () => {
       {/* ✅ "Answer The Activity" Button - Always Enabled */}
       <div 
         className="answer-item-btn active"
-        onClick={() => navigate(`/student/class/activity/${actID}/assessment`)}
+        onClick={() => navigate(`/student/class/${classID}/activity/${actID}/assessment`)}
       >
         <i className="bi bi-pencil-square"></i> Answer The Activity
       </div>

@@ -10,7 +10,7 @@ export const TeacherCodingAssessmentComponent = () => {
     const { classID, actID } = useParams(); // ✅ Get classID and actID from URL
     const navigate_class = useNavigate();
     const handleClassClick = () => {
-        navigate_class(`/teacher/class/activity/${actID}/items`);
+        navigate_class(`/teacher/class/${classID}/activity/${actID}/items`);
     };
 
     const [items] = useState([

@@ -51,6 +51,7 @@ export const StudentDashboardComponent = () => {
     const handleLogout = async () => {
         const result = await logout();
         if (!result.error) {
+            alert("✅ Logout successful");
             window.location.href = "/home";
         } else {
             alert("❌ Logout failed. Try again.");

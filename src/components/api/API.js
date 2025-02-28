@@ -97,6 +97,31 @@ async function logout() {
     return { error: "Logout failed. Try again." };
 }
 
+// Function to verify password
+async function verifyPassword(email, password) {
+    try {
+      const response = await fetch(`${API_LINK}/login`, {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+        headers: { "Content-Type": "application/json" }
+      });
+  
+      const data = await response.json();
+  
+      if (!response.ok) {
+        // If the response is not OK, it means password is incorrect
+        return { error: data.message || "Wrong password" };
+      }
+  
+      // We do NOT store the token in session storage here. 
+      // We only want to verify the password correctness.
+      return { success: true };
+    } catch (error) {
+      console.error("❌ verifyPassword Error:", error);
+      return { error: "Something went wrong while verifying the password." };
+    }
+  }
+
 // Function to check if user is logged in
 function hasAccessToken() {
     return sessionStorage.getItem("access_token") !== null;
@@ -674,7 +699,8 @@ async function getProgrammingLanguages() {
 export { 
     register, 
     login, 
-    logout, 
+    logout,
+    verifyPassword,
     hasAccessToken, 
     getUserRole, 
     getProfile, 

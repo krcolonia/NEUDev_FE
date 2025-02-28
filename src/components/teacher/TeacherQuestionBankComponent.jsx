@@ -55,9 +55,12 @@ const compilerCodeMap = {
  * Basic code validation patterns
  */
 const codeValidationPatterns = {
-  Java:   /\b(public\s+class\s+\w+|System\.out\.println|import\s+java\.)\b/i,
-  "C#":   /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/i,
-  Python: /\b(print\s*\(|def\s+\w+\(|import\s+\w+|class\s+\w+|if\s+|while\s+|for\s+\w+\s+in)\b/i,
+  // Java:   /\b(public\s+class\s+\w+|System\.out\.println|import\s+java\.)\b/i,
+  // "C#":   /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/i,
+  // Python: /\b(print\s*\(|def\s+\w+\(|import\s+\w+|class\s+\w+|if\s+|while\s+|for\s+\w+\s+in)\b/i,
+  'Java': /\b(public\s+class\s+\w+|System\.out\.println|import\s+java\.)\b/,
+  'Python': /\b(print\s*\(|def\s+\w+\(|import\s+\w+|class\s+\w+|for\s+\w+\s+in|while\s+|if\s+)/,
+  'C#': /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/
 };
 
 function isValidCodeForLanguage(code, languageName) {
@@ -467,7 +470,7 @@ export default function TeacherQuestionBankComponent() {
           </tbody>
         </table>
       </div>
-
+      
       {/* -------------------- Create/Edit Modal -------------------- */}
       <Modal
         show={showCreateModal || showEditModal}
@@ -475,6 +478,8 @@ export default function TeacherQuestionBankComponent() {
           setShowCreateModal(false);
           setShowEditModal(false);
         }}
+        backdrop='static' 
+        keyboard={false}
         size="lg"
       >
         <Modal.Header closeButton>
