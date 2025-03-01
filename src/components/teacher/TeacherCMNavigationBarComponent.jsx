@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dropdown, Navbar, Tab, Tabs } from "react-bootstrap";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import "../../style/teacher/cmNavigationBar.css";
-import { getProfile } from "../api/API"; // ✅ Import API function
+import { getProfile, logout } from "../api/API"; // ✅ Import API function
 
 const TeacherCMNavigationBarComponent = () => {
   const navigate = useNavigate();
@@ -33,6 +33,16 @@ const TeacherCMNavigationBarComponent = () => {
   // ✅ Navigate between class management tabs
   const handleSelect = (key) => {
     navigate(`/teacher/class/${classID}/${key}`);
+  };
+
+  const handleLogout = async () => {
+    const result = await logout();
+    if (!result.error) {
+        alert("✅ Logout successful");
+        window.location.href = "/home";
+    } else {
+        alert("❌ Logout failed. Try again.");
+    }
   };
 
   return (
@@ -69,7 +79,7 @@ const TeacherCMNavigationBarComponent = () => {
           </Dropdown.Toggle>
           <Dropdown.Menu>
             <Dropdown.Item onClick={() => navigate("/teacher/profile")}>Profile</Dropdown.Item>
-            <Dropdown.Item onClick={() => navigate("/home")}>Log Out</Dropdown.Item>
+            <Dropdown.Item onClick={handleLogout}>Log Out</Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>
       </div>

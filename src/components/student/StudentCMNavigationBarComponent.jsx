@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dropdown, Navbar, Tab, Tabs } from "react-bootstrap";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import "../../style/teacher/cmNavigationBar.css"; // ✅ Adjusted path for student styles
-import { getProfile } from "../api/API"; // ✅ Import API function
+import { getProfile, logout} from "../api/API"; // ✅ Import API function
 
 const StudentCMNavigationBarComponent = () => {
   const navigate = useNavigate();
@@ -34,6 +34,16 @@ const StudentCMNavigationBarComponent = () => {
     navigate(`/student/class/${classID}/${key}`);
   };
 
+  const handleLogout = async () => {
+    const result = await logout();
+    if (!result.error) {
+        alert("✅ Logout successful");
+        window.location.href = "/home";
+    } else {
+        alert("❌ Logout failed. Try again.");
+    }
+  };
+
   return (
     <Navbar expand="lg" className="class-navbar-top">
       {/* ✅ Back to Class List */}
@@ -59,7 +69,7 @@ const StudentCMNavigationBarComponent = () => {
           </Dropdown.Toggle>
           <Dropdown.Menu>
             <Dropdown.Item onClick={() => navigate("/student/profile")}>Profile</Dropdown.Item>
-            <Dropdown.Item onClick={() => navigate("/home")}>Log Out</Dropdown.Item>
+            <Dropdown.Item onClick={handleLogout}>Log Out</Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>
       </div>

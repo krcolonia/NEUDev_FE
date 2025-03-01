@@ -31,15 +31,19 @@ export const TeacherCreateActivityComponent = () => {
   // -------------------- Activity Form State --------------------
   const [activityTitle, setActivityTitle] = useState('');
   const [activityDescription, setActivityDescription] = useState('');
-  const [difficulty, setDifficulty] = useState('');
-  const [selectedProgLangs, setSelectedProgLangs] = useState([]); // multiple languages
-  const [maxPoints, setMaxPoints] = useState('');
+  const [actDifficulty, setDifficulty] = useState('');
+
+  // NEW: Store duration as a "HH:MM:SS" string
+  const [activityDuration, setActivityDuration] = useState('');
+
+  // For programming languages
+  const [selectedProgLangs, setSelectedProgLangs] = useState([]);
   const [selectedItemType, setSelectedItemType] = useState(null);
   const [itemTypeName, setItemTypeName] = useState('');
   const [itemTypes, setItemTypes] = useState([]);
 
-  // For question selection (3 slots)
-  const [questions, setQuestions] = useState(['', '', '']);
+  // For question selection, store full question objects (or null)
+  const [selectedQuestions, setSelectedQuestions] = useState([null, null, null]);
   const [presetQuestions, setPresetQuestions] = useState([]);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(null);
@@ -54,6 +58,9 @@ export const TeacherCreateActivityComponent = () => {
 
   // Programming languages from the server
   const [programmingLanguages, setProgrammingLanguages] = useState([]);
+
+  // For actDuration input
+  const [durationInMinutes, setDurationInMinutes] = useState("0");
 
   // -------------------- Lifecycle --------------------
   useEffect(() => {
@@ -79,6 +86,8 @@ export const TeacherCreateActivityComponent = () => {
     }
   };
 
+
+  
   const fetchProgrammingLanguages = async () => {
     const response = await getProgrammingLanguages();
     if (!response.error && Array.isArray(response)) {
@@ -111,29 +120,21 @@ export const TeacherCreateActivityComponent = () => {
     setSelectedQuestion(question);
   };
 
-  /**
-   * The key logic: if the question is already chosen in *any* slot,
-   * block it to avoid duplicates.
-   */
   const handleSaveQuestion = () => {
     if (!selectedQuestion || selectedQuestionIndex === null) return;
 
-    // If the question name is already in another slot, show an error
-    const alreadyExists = questions.some(
-      (qName, i) =>
-        i !== selectedQuestionIndex && // exclude the same slot
-        qName === selectedQuestion.questionName
+    // Check if the same question is already picked in another slot
+    const alreadyExists = selectedQuestions.some(
+      (q, i) => i !== selectedQuestionIndex && q && q.questionID === selectedQuestion.questionID
     );
     if (alreadyExists) {
       alert("❌ You already picked that question. Please choose a different one.");
       return;
     }
 
-    // Otherwise, set it in the chosen slot
-    const updatedQuestions = [...questions];
-    updatedQuestions[selectedQuestionIndex] = selectedQuestion.questionName;
-    setQuestions(updatedQuestions);
-
+    const updated = [...selectedQuestions];
+    updated[selectedQuestionIndex] = selectedQuestion;
+    setSelectedQuestions(updated);
     setSelectedQuestion(null);
     setShowModal(false);
   };
@@ -165,67 +166,72 @@ export const TeacherCreateActivityComponent = () => {
   // -------------------- Create Activity --------------------
   const handleCreateActivity = async (e) => {
     e.preventDefault();
-
+  
+    // Basic validations for activity fields:
     if (
       !activityTitle.trim() ||
       !activityDescription.trim() ||
-      !difficulty ||
+      !actDifficulty ||
+      !durationInMinutes || // Check that duration in minutes is provided
       selectedProgLangs.length === 0 ||
-      !maxPoints || isNaN(maxPoints) || maxPoints <= 0 ||
       !dateOpened ||
       !dateClosed ||
-      questions.every(q => q === '')
+      selectedQuestions.every(q => q === null)
     ) {
-      alert("⚠️ All fields are required, including at least one programming language.");
+      alert("⚠️ All fields are required, including at least one programming language, one question, and an activity duration.");
       return;
     }
-
+  
     const classID = sessionStorage.getItem("selectedClassID");
-
-    // Build final question objects
-    const selectedQuestions = questions
-      .filter(q => q.trim() !== '')
-      .map(q => {
-        const matched = presetQuestions.find(pq => pq.questionName.trim() === q.trim());
-        if (!matched) {
-          console.error(`❌ No match found for question: "${q}"`);
-          return null;
-        }
-        return {
-          questionID: matched.questionID,
-          itemTypeID: selectedItemType
-        };
-      })
-      .filter(q => q !== null);
-
-    if (selectedQuestions.length === 0) {
+  
+    // Build final question objects (include questionPoints from the question bank)
+    const finalQuestions = selectedQuestions
+      .filter(q => q !== null)
+      .map(q => ({
+        questionID: q.questionID,
+        itemTypeID: selectedItemType,
+        actQuestionPoints: q.questionPoints
+      }));
+  
+    if (finalQuestions.length === 0) {
       alert("⚠️ Please select at least one valid question.");
       return;
     }
-
+  
+    // Compute total points from selected questions
+    const computedPoints = finalQuestions.reduce((sum, q) => sum + (q.actQuestionPoints || 0), 0);
+  
+    // Convert total minutes to HH:MM:SS format
+    const total = parseInt(durationInMinutes, 10);
+    const hh = String(Math.floor(total / 60)).padStart(2, "0");
+    const mm = String(total % 60).padStart(2, "0");
+    const ss = "00"; // fixed seconds
+    const finalDuration = `${hh}:${mm}:${ss}`;
+  
+    // The backend will receive actDuration as a string in HH:MM:SS format
     const newActivity = {
       classID,
       actTitle: activityTitle,
       actDesc: activityDescription,
-      difficulty,
-      startDate: dateOpened,
-      endDate: dateClosed,
+      actDifficulty,
+      actDuration: finalDuration, 
+      openDate: dateOpened,
+      closeDate: dateClosed,
       progLangIDs: selectedProgLangs,
-      maxPoints: parseInt(maxPoints),
-      questions: selectedQuestions
+      maxPoints: computedPoints, // sum of question points
+      questions: finalQuestions
     };
-
+  
     console.log("📤 Sending Activity Data:", JSON.stringify(newActivity, null, 2));
-
+  
     const response = await createActivity(newActivity);
     if (response.error) {
       alert(`❌ Failed to create activity: ${response.error}`);
     } else {
-      console.log("Selected languages:", selectedProgLangs);
       alert("✅ Activity created successfully!");
       navigate(`/teacher/class/${classID}/activity`); // redirect
     }
-  };
+  };  
 
   return (
     <div className="whole-container">
@@ -267,12 +273,12 @@ export const TeacherCreateActivityComponent = () => {
             {/* 3 Question Slots */}
             <div className='question-section'>
               <h4>Set Questions (Maximum of 3)</h4>
-              {questions.map((q, index) => (
+              {selectedQuestions.map((q, index) => (
                 <Form.Control
                   key={index}
                   type='text'
                   placeholder={`Question ${index + 1}`}
-                  value={q}
+                  value={q ? `${q.questionName} - ${q.questionPoints || 0} pts` : ""}
                   readOnly
                   onClick={() => handleQuestionClick(index)}
                   required={index === 0} 
@@ -284,7 +290,7 @@ export const TeacherCreateActivityComponent = () => {
             <div className='difficulty-section'>
               <Form.Control 
                 as='select' 
-                value={difficulty} 
+                value={actDifficulty} 
                 onChange={(e) => setDifficulty(e.target.value)} 
                 required
               >
@@ -310,6 +316,22 @@ export const TeacherCreateActivityComponent = () => {
               />
             </div>
 
+            {/* NEW: Activity Duration Input (HH:MM:SS) */}
+            <Form.Group className="mt-3">
+              <Form.Label>Activity Duration (in minutes)</Form.Label>
+                <Form.Control
+                  type="number"
+                  min="0"
+                  value={durationInMinutes}
+                  onChange={(e) => setDurationInMinutes(e.target.value)}
+                  placeholder="Enter total minutes"
+                  required
+                />
+                <Form.Text className="text-muted">
+                  e.g., 90 → 1 hour 30 minutes
+                </Form.Text>
+            </Form.Group>
+
             {/* Programming Languages (Checkboxes) */}
             <Form.Group className="mt-3">
               <Form.Label>Select all languages that can be used to solve this item.</Form.Label>
@@ -317,10 +339,7 @@ export const TeacherCreateActivityComponent = () => {
                 <Form.Check 
                   type="checkbox"
                   label="Applicable to all"
-                  checked={
-                    selectedProgLangs.length > 0 &&
-                    selectedProgLangs.length === programmingLanguages.length
-                  }
+                  checked={selectedProgLangs.length > 0 && selectedProgLangs.length === programmingLanguages.length}
                   onChange={(e) => handleSelectAllLangs(e.target.checked)}
                 />
               </div>
@@ -335,15 +354,17 @@ export const TeacherCreateActivityComponent = () => {
               ))}
             </Form.Group>
 
-            {/* Total Points */}
+            {/* Display computed Total Points */}
             <Form.Group className="mt-3">
-              <Form.Label>Total Points</Form.Label>
+              <Form.Label>Total Points (automatically computed)</Form.Label>
               <Form.Control 
                 type="number" 
-                placeholder="Enter total points" 
-                value={maxPoints} 
-                onChange={(e) => setMaxPoints(e.target.value)} 
-                required 
+                value={
+                  selectedQuestions
+                    .filter(q => q !== null)
+                    .reduce((sum, q) => sum + (q.questionPoints || 0), 0)
+                }
+                readOnly
               />
             </Form.Group>
 
@@ -387,15 +408,22 @@ export const TeacherCreateActivityComponent = () => {
                 </div>
               )}
 
-              {presetQuestions.map((q, idx) => (
-                <Button 
-                  key={idx} 
-                  className={`question-item d-block ${selectedQuestion === q ? 'highlighted' : ''}`} 
-                  onClick={() => handleSelectQuestion(q)}
-                >
-                  {q.questionName} - {q.difficulty}
-                </Button>
-              ))}
+              {presetQuestions.length === 0 ? (
+                <p>
+                  There are no questions yet. Please go to the{' '}
+                  <a href="/teacher/question">Question Bank</a> to create questions.
+                </p>
+              ) : (
+                presetQuestions.map((q, idx) => (
+                  <Button 
+                    key={idx} 
+                    className={`question-item d-block ${selectedQuestion === q ? 'highlighted' : ''}`} 
+                    onClick={() => handleSelectQuestion(q)}
+                  >
+                    {q.questionName} - {q.questionDifficulty} - {q.questionPoints} pts
+                  </Button>
+                ))
+              )}
             </Modal.Body>
             <Modal.Footer>
               <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>

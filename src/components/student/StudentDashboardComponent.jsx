@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams} from 'react-router-dom';
 import { Navbar, Dropdown, Nav, Card, Button, Modal, Form } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLaptopCode, faDesktop, faBars } from '@fortawesome/free-solid-svg-icons';
@@ -51,6 +51,7 @@ export const StudentDashboardComponent = () => {
     const handleLogout = async () => {
         const result = await logout();
         if (!result.error) {
+            alert("✅ Logout successful");
             window.location.href = "/home";
         } else {
             alert("❌ Logout failed. Try again.");
@@ -64,23 +65,26 @@ export const StudentDashboardComponent = () => {
             alert("⚠️ Please enter a valid class code.");
             return;
         }
-
+    
         setIsJoining(true);
         const response = await enrollInClass(classCode);
-
+    
         if (response.error) {
             alert(`❌ Failed to join class: ${response.error}`);
         } else {
             alert("✅ Successfully joined the class!");
             setShowJoinClass(false);
             setClassCode("");
-
-            // ✅ Refresh the class list after joining
-            setClasses([...classes, response]);
+    
+            // ✅ Re-fetch classes after joining to get complete class data (including classID)
+            const classesResponse = await getStudentClasses();
+            if (!classesResponse.error) {
+                setClasses(classesResponse);
+            }
         }
-
+    
         setIsJoining(false);
-    };
+    };    
 
     return (
         <div className='dashboard'>

@@ -61,10 +61,10 @@ function App() {
                     <Route path="/student/class/:classID/activity" element={<StudentClassManagementComponent />} />
                     <Route path="/student/class/:classID/student-bulletin" element={<StudentBulletinComponent />} />
 
-                    <Route path="/student/class/activity/:actID/leaderboard" element={<StudentActivityLeaderboardComponent />} />
-                    <Route path="/student/class/activity/:actID/items" element={<StudentActivityItemsComponent />} />
+                    <Route path="/student/class/:classID/activity/:actID/leaderboard" element={<StudentActivityLeaderboardComponent />} />
+                    <Route path="/student/class/:classID/activity/:actID/items" element={<StudentActivityItemsComponent />} />
 
-                    <Route path="/student/class/activity/:actID/assessment" element={<StudentCodingAssessmentComponent />} />
+                    <Route path="/student/class/:classID/activity/:actID/assessment" element={<StudentCodingAssessmentComponent />} />
                 </Route>
 
                 {/* Protected Teacher Routes */}
@@ -80,11 +80,11 @@ function App() {
                     <Route path="/teacher/class/:classID/teacher-bulletin" element={<TeacherClassManagementBulletinComponent />} />
 
                     {/* 🔥 Dynamic Activity Routes for Teachers */}
-                    <Route path="/teacher/class/activity/:actID/leaderboard" element={<TeacherActivityLeaderboardComponent />} />
-                    <Route path="/teacher/class/activity/:actID/items" element={<TeacherActivityItemsComponent />} />
-                    <Route path="/teacher/class/activity/:actID/settings" element={<TeacherActivitySettingsComponent />} />
+                    <Route path="/teacher/class/:classID/activity/:actID/leaderboard" element={<TeacherActivityLeaderboardComponent />} />
+                    <Route path="/teacher/class/:classID/activity/:actID/items" element={<TeacherActivityItemsComponent />} />
+                    <Route path="/teacher/class/:classID/activity/:actID/settings" element={<TeacherActivitySettingsComponent />} />
 
-                    <Route path="/teacher/class/activity/:actID/assessment" element={<TeacherCodingAssessmentComponent />} />
+                    <Route path="/teacher/class/:classID/activity/:actID/assessment" element={<TeacherCodingAssessmentComponent />} />
                 </Route>
 
                 {/* 🔥 Fallback route for 404 */}

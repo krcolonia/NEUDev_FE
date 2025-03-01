@@ -10,7 +10,7 @@ export const StudentCodingAssessmentComponent = () => {
     const { classID, actID } = useParams(); // ✅ Get classID and actID from URL
     const navigate_class = useNavigate();
     const handleClassClick = () => {
-        navigate_class(`/student/class/activity/${actID}/items`);
+        navigate_class(`/student/class/${classID}/activity`);
     };
 
     const [items] = useState([

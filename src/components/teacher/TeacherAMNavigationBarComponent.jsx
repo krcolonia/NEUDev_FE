@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Dropdown, Navbar, Tab, Tabs } from "react-bootstrap";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import "../../style/teacher/activityItems.css";
-import { getProfile } from "../api/API"; // ✅ Import API function
+import { getProfile, logout } from "../api/API"; // ✅ Import API function
 
 const TeacherAMNavigationBarComponent = () => {
   const navigate = useNavigate();
@@ -32,8 +32,18 @@ const TeacherAMNavigationBarComponent = () => {
 
   // ✅ Navigate between activity management tabs
   const handleSelect = (key) => {
-    navigate(`/teacher/class/activity/${actID}/${key}`);
+    navigate(`/teacher/class/${classID}/activity/${actID}/${key}`);
   };
+
+    const handleLogout = async () => {
+      const result = await logout();
+      if (!result.error) {
+          alert("✅ Logout successful");
+          window.location.href = "/home";
+      } else {
+          alert("❌ Logout failed. Try again.");
+      }
+    };
 
   return (
     <Navbar expand="lg" className="class-navbar-top">
@@ -61,7 +71,7 @@ const TeacherAMNavigationBarComponent = () => {
           </Dropdown.Toggle>
           <Dropdown.Menu>
             <Dropdown.Item onClick={() => navigate("/teacher/profile")}>Profile</Dropdown.Item>
-            <Dropdown.Item onClick={() => navigate("/home")}>Log Out</Dropdown.Item>
+            <Dropdown.Item onClick={handleLogout}>Log Out</Dropdown.Item>
           </Dropdown.Menu>
         </Dropdown>
       </div>

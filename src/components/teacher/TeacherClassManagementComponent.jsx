@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams} from 'react-router-dom';
 import { Row, Tabs, Col, Tab, Modal, Button, Form } from 'react-bootstrap';
 import TeacherCMNavigationBarComponent from './TeacherCMNavigationBarComponent';
 import "../../style/teacher/cmActivities.css"; 
@@ -8,11 +8,12 @@ import {
   editActivity, 
   deleteActivity, 
   getQuestions, 
-  getItemTypes,
-  getProgrammingLanguages
+  getItemTypes, 
+  getProgrammingLanguages,
+  verifyPassword   // <-- Imported here from your API module
 } from "../api/API"; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCaretDown } from '@fortawesome/free-solid-svg-icons';
+import { faCaretDown, faEllipsisV, faEye, faEyeSlash, faClock } from '@fortawesome/free-solid-svg-icons';
 
 // Mapping of known programming language IDs to names and images
 const programmingLanguageMap = {
@@ -21,37 +22,81 @@ const programmingLanguageMap = {
   3: { name: "Python", image: "/src/assets/py.png" }
 };
 
+// Timer component calculates time remaining.
+const Timer = ({ openDate, closeDate }) => {
+  const [timeLeft, setTimeLeft] = useState("00:00:00");
+  const [isTimeLow, setIsTimeLow] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      const open = new Date(openDate);
+      const close = new Date(closeDate);
+      let diff = 0;
+
+      if (now < open) {
+        diff = open - now;
+      } else if (now >= open && now <= close) {
+        diff = close - now;
+      } else {
+        diff = 0;
+      }
+
+      if (diff <= 0) {
+        setTimeLeft("00:00:00");
+        setIsTimeLow(false);
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+        const formatted = `${hours.toString().padStart(2, '0')}:${minutes
+          .toString()
+          .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        setTimeLeft(formatted);
+        setIsTimeLow(diff <= 10 * 60 * 1000);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [openDate, closeDate]);
+
+  return (
+    <span style={{ 
+      color: isTimeLow ? "red" : "inherit", 
+      fontWeight: isTimeLow ? "bold" : "normal" 
+    }}>
+      {timeLeft}
+    </span>
+  );
+};
+
 export const TeacherClassManagementComponent = () => {
   const navigate = useNavigate();
+  const { classID } = useParams();
 
   // -------------------- Activity States --------------------
   const [contentKey, setContentKey] = useState('ongoing');
   const [ongoingActivities, setOngoingActivities] = useState([]);
   const [completedActivities, setCompletedActivities] = useState([]);
   const [upcomingActivities, setUpcomingActivities] = useState([]);
-
-  // Edit mode and selected activity
-  const [editMode, setEditMode] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
 
-  // Edit modal state – including all fields to be editable
+  // -------------------- Edit Modal State --------------------
   const [showEditModal, setShowEditModal] = useState(false);
   const [editFormData, setEditFormData] = useState({
     actTitle: '',
     actDesc: '',
-    difficulty: '',
-    startDate: '',
-    endDate: '',
-    // Removed single progLangID; we use many-to-many now.
+    actDifficulty: '',
+    openDate: '',
+    closeDate: '',
+    // maxPoints will be computed automatically now
     maxPoints: '',
     questions: ['', '', '']
   });
-
-  // For editing multiple programming languages
   const [allProgrammingLanguages, setAllProgrammingLanguages] = useState([]);
-  const [editSelectedProgLangs, setEditSelectedProgLangs] = useState([]); // array of IDs
+  const [editSelectedProgLangs, setEditSelectedProgLangs] = useState([]);
 
-  // --- States for the Question Selection Modal ---
+  // -------------------- Question Selection Modal --------------------
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(null);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
@@ -60,6 +105,15 @@ export const TeacherClassManagementComponent = () => {
   const [qItemTypes, setQItemTypes] = useState([]);
   const [qPresetQuestions, setQPresetQuestions] = useState([]);
   const [showItemTypeDropdown, setShowItemTypeDropdown] = useState(false);
+
+  // -------------------- 3-dots Menu State --------------------
+  const [openMenu, setOpenMenu] = useState(null);
+
+  // -------------------- Delete Modal State --------------------
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [activityToDelete, setActivityToDelete] = useState(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
 
   useEffect(() => {
     fetchActivities();
@@ -73,14 +127,13 @@ export const TeacherClassManagementComponent = () => {
     fetchAllProgrammingLanguages();
   }, []);
 
-  // When the question item type changes, fetch its preset questions
   useEffect(() => {
     if (qSelectedItemType) {
       fetchQPresetQuestions();
     }
   }, [qSelectedItemType]);
 
-  // --------------- Fetching Activities ---------------
+  // -------------------- API Fetching --------------------
   const fetchActivities = async () => {
     try {
       const classID = sessionStorage.getItem("selectedClassID");
@@ -92,9 +145,9 @@ export const TeacherClassManagementComponent = () => {
       console.log("🟢 API Response:", response);
       if (!response.error) {
         const now = new Date();
-        const upcoming = response.ongoing.filter(act => new Date(act.startDate) > now);
+        const upcoming = response.ongoing.filter(act => new Date(act.openDate) > now);
         const ongoing = response.ongoing.filter(
-          act => new Date(act.startDate) <= now && new Date(act.endDate) > now
+          act => new Date(act.openDate) <= now && new Date(act.closeDate) > now
         );
         const completed = response.completed;
         setUpcomingActivities(upcoming);
@@ -108,7 +161,6 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
-  // --------------- Fetch All Programming Languages ---------------
   const fetchAllProgrammingLanguages = async () => {
     try {
       const response = await getProgrammingLanguages();
@@ -122,7 +174,6 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
-  // --------------- Item Types + Questions for Question Modal ---------------
   const fetchQItemTypes = async () => {
     const response = await getItemTypes();
     if (!response.error && response.length > 0) {
@@ -143,7 +194,74 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
-  // --------------- Question Modal Handlers ---------------
+  // -------------------- 3-dots Menu / Card Click --------------------
+  const toggleMenu = (e, activityID) => {
+    e.stopPropagation(); 
+    setOpenMenu(openMenu === activityID ? null : activityID);
+  };
+
+  const handleActivityCardClick = (activity) => {
+    navigate(`/teacher/class/${classID}/activity/${activity.actID}/items`);
+  };
+
+  // -------------------- 3-dots Menu Actions --------------------
+  const handleEditClick = (e, activity) => {
+    e.stopPropagation();
+    setOpenMenu(null);
+    setSelectedActivity(activity);
+    openEditModal(activity);
+  };
+
+  const handleDeleteClick = (e, activity) => {
+    e.stopPropagation();
+    setOpenMenu(null);
+    setActivityToDelete(activity);
+    setShowDeleteModal(true);
+  };
+
+  const handleCopyLinkClick = (e, activity) => {
+    e.stopPropagation();
+    setOpenMenu(null);
+    const activityLink = `${window.location.origin}/teacher/class/${classID}/activity/${activity.actID}/items`;
+    navigator.clipboard.writeText(activityLink)
+      .then(() => {
+        alert("Activity link copied to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy link:", err);
+      });
+  };
+
+  // -------------------- Delete Confirmation Handler --------------------
+  const handleConfirmDelete = async () => {
+    const teacherEmail = sessionStorage.getItem("user_email");
+    if (!teacherEmail) {
+      alert("Teacher email not found. Please log in again.");
+      return;
+    }
+    // Use the imported verifyPassword function here
+    const verification = await verifyPassword(teacherEmail, deletePassword);
+    if (verification.error) {
+      alert(verification.error);
+      return;
+    }
+    try {
+      const response = await deleteActivity(activityToDelete.actID);
+      if (!response.error) {
+        alert("Activity deleted successfully.");
+        fetchActivities();
+      } else {
+        alert("Error deleting activity: " + response.error);
+      }
+    } catch (err) {
+      console.error("Error deleting activity:", err);
+    }
+    setShowDeleteModal(false);
+    setDeletePassword("");
+    setActivityToDelete(null);
+  };
+
+  // -------------------- Question Modal Handlers --------------------
   const handleQuestionClick = (index) => {
     setSelectedQuestionIndex(index);
     setShowQuestionModal(true);
@@ -158,14 +276,37 @@ export const TeacherClassManagementComponent = () => {
   };
 
   const handleSaveQuestion = () => {
-    if (selectedQuestion !== null && selectedQuestionIndex !== null) {
-      const updatedQuestions = [...editFormData.questions];
+    if (selectedQuestion === null || selectedQuestionIndex === null) return;
+    // Check if the same question is already picked
+    const duplicate = editFormData.questions.some((q, i) =>
+      i !== selectedQuestionIndex &&
+      q.questionID === selectedQuestion.questionID
+    );
+    if (duplicate) {
+      alert("❌ You already picked that question. Please choose a different one.");
+      return;
+    }
+    const updatedQuestions = [...editFormData.questions];
+    updatedQuestions[selectedQuestionIndex] = {
+      questionID: selectedQuestion.questionID,
+      questionName: selectedQuestion.questionName,
+      itemTypeID: selectedQuestion.itemTypeID,
+      questionPoints: selectedQuestion.questionPoints // store the points
+    };
+    setEditFormData({ ...editFormData, questions: updatedQuestions });
+    setSelectedQuestion(null);
+    setShowQuestionModal(false);
+  };
+
+  const handleRemoveQuestion = () => {
+    if (selectedQuestionIndex !== null) {
+      const updatedQuestions = [...(editFormData.questions || [])];
       updatedQuestions[selectedQuestionIndex] = {
-        questionID: selectedQuestion.questionID,
-        questionName: selectedQuestion.questionName,
-        itemTypeID: selectedQuestion.itemTypeID
+        questionID: null,
+        questionName: "",
+        itemTypeID: null,
+        questionPoints: 0
       };
-      console.log("Updated Questions Array:", updatedQuestions);
       setEditFormData({ ...editFormData, questions: updatedQuestions });
       setSelectedQuestion(null);
       setShowQuestionModal(false);
@@ -178,107 +319,7 @@ export const TeacherClassManagementComponent = () => {
     setShowItemTypeDropdown(false);
   };
 
-  const handleRemoveQuestion = () => {
-    if (selectedQuestionIndex !== null) {
-      const updatedQuestions = [...(editFormData.questions || [])];
-      updatedQuestions[selectedQuestionIndex] = { questionID: null, questionName: "", itemTypeID: null };
-      setEditFormData({ ...editFormData, questions: updatedQuestions });
-      setSelectedQuestion(null);
-      setShowQuestionModal(false);
-    }
-  };
-
-  // --------------- Entering Edit Mode ---------------
-  const handleActivityClick = (activity) => {
-    if (editMode) {
-      setSelectedActivity(activity);
-    } else {
-      navigate(`/teacher/class/activity/${activity.actID}/items`);
-    }
-  };
-
-  const isSelected = (activity) => {
-    return editMode && selectedActivity?.actID === activity.actID;
-  };
-
-  const handleEdit = () => {
-    if (!selectedActivity) {
-      alert("Choose an activity to edit or delete.");
-      return;
-    }
-    console.log("Selected Activity Data:", selectedActivity);
-    console.log("Selected Activity Questions:", selectedActivity.questions);
-
-    let existingQuestions = [];
-    if (Array.isArray(selectedActivity.questions) && selectedActivity.questions.length > 0) {
-      existingQuestions = selectedActivity.questions.map(q => ({
-        questionID: q?.question?.questionID || null,
-        questionName: q?.question?.questionName || "",
-        itemTypeID: q?.itemTypeID || null
-      }));
-    }
-    while (existingQuestions.length < 3) {
-      existingQuestions.push({ questionID: null, questionName: "", itemTypeID: null });
-    }
-
-    setEditFormData({
-      actTitle: selectedActivity.actTitle || '',
-      actDesc: selectedActivity.actDesc || '',
-      difficulty: selectedActivity.difficulty || '',
-      startDate: selectedActivity.startDate ? selectedActivity.startDate.slice(0, 16) : '',
-      endDate: selectedActivity.endDate ? selectedActivity.endDate.slice(0, 16) : '',
-      maxPoints: selectedActivity.maxPoints ? selectedActivity.maxPoints.toString() : '',
-      questions: existingQuestions
-    });
-    // Map existing programming language IDs from pivot table.
-    const existingLangIDs = (selectedActivity.programming_languages || []).map(lang => lang.progLangID);
-    console.log("Existing Programming Languages for Activity:", existingLangIDs);
-    setEditSelectedProgLangs(existingLangIDs);
-    setShowEditModal(true);
-  };
-
-  // --------------- Deleting Activities ---------------
-  const handleDelete = async () => {
-    if (!selectedActivity) {
-      alert("Choose an activity to edit or delete.");
-      return;
-    }
-    const confirmed = window.confirm("Are you sure you want to delete this activity?");
-    if (confirmed) {
-      try {
-        const response = await deleteActivity(selectedActivity.actID);
-        if (!response.error) {
-          alert("Activity deleted successfully.");
-          setSelectedActivity(null);
-          fetchActivities();
-        } else {
-          alert("Error deleting activity: " + response.error);
-        }
-      } catch (err) {
-        console.error("Error deleting activity:", err);
-      }
-    }
-  };
-
-  const handleDeleteAll = async () => {
-    const confirmed = window.confirm("Are you sure you want to delete ALL activities?");
-    if (confirmed) {
-      try {
-        const allActivities = [...ongoingActivities, ...completedActivities, ...upcomingActivities];
-        for (let act of allActivities) {
-          await deleteActivity(act.actID);
-        }
-        alert("All activities deleted successfully.");
-        setSelectedActivity(null);
-        fetchActivities();
-      } catch (err) {
-        console.error("Error deleting all activities:", err);
-        alert("Error deleting all activities.");
-      }
-    }
-  };
-
-  // --------------- Handling Multi-Language in Edit Form ---------------
+  // -------------------- Programming Languages Checkboxes --------------------
   const handleEditProgLangToggle = (langID) => {
     if (editSelectedProgLangs.includes(langID)) {
       setEditSelectedProgLangs(editSelectedProgLangs.filter(id => id !== langID));
@@ -296,28 +337,80 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
-  // --------------- Submitting Edit Form ---------------
+  // -------------------- Edit Modal --------------------
+  const openEditModal = (activity) => {
+    if (!activity) return;
+    let existingQuestions = [];
+    if (Array.isArray(activity.questions) && activity.questions.length > 0) {
+      existingQuestions = activity.questions.map(q => ({
+        questionID: q?.question?.questionID || null,
+        questionName: q?.question?.questionName || "",
+        itemTypeID: q?.itemTypeID || null,
+        questionPoints: q?.question?.questionPoints || 0
+      }));
+    }
+    while (existingQuestions.length < 3) {
+      existingQuestions.push({ questionID: null, questionName: "", itemTypeID: null, questionPoints: 0 });
+    }
+    // Convert actDuration (HH:MM:SS) to total minutes
+    let totalMinutes = "";
+    if (activity.actDuration) {
+      // Extract hours and minutes; ignore seconds.
+      const parts = activity.actDuration.split(":");
+      if (parts.length >= 2) {
+        totalMinutes = String(parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10));
+      }
+    }
+    setEditFormData({
+      actTitle: activity.actTitle || '',
+      actDesc: activity.actDesc || '',
+      actDifficulty: activity.actDifficulty || '',
+      openDate: activity.openDate ? activity.openDate.slice(0, 16) : '',
+      closeDate: activity.closeDate ? activity.closeDate.slice(0, 16) : '',
+      maxPoints: activity.maxPoints ? activity.maxPoints.toString() : '',
+      actDuration: totalMinutes,  // Store total minutes as a string
+      questions: existingQuestions
+    });
+    const existingLangIDs = (activity.programming_languages || []).map(lang => lang.progLangID);
+    setEditSelectedProgLangs(existingLangIDs);
+    setShowEditModal(true);
+  };  
+
   const handleEditSubmit = async (e) => {
     e.preventDefault();
+    if (!selectedActivity) return;
+    // Compute total points from selected questions
+    const computedPoints = editFormData.questions
+      .filter(q => q && q.questionPoints)
+      .reduce((sum, q) => sum + q.questionPoints, 0);
+  
+    // Convert the numeric minutes to HH:MM:SS format
+    const total = parseInt(editFormData.actDuration, 10);
+    const hh = String(Math.floor(total / 60)).padStart(2, "0");
+    const mm = String(total % 60).padStart(2, "0");
+    const ss = "00"; // fixed seconds
+    const finalDuration = `${hh}:${mm}:${ss}`;
+  
     const updatedActivity = {
       actTitle: editFormData.actTitle,
       actDesc: editFormData.actDesc,
-      difficulty: editFormData.difficulty,
-      startDate: editFormData.startDate || selectedActivity.startDate,
-      endDate: editFormData.endDate,
-      maxPoints: parseInt(editFormData.maxPoints),
+      actDifficulty: editFormData.actDifficulty,
+      openDate: editFormData.openDate || selectedActivity.openDate,
+      closeDate: editFormData.closeDate,
+      actDuration: finalDuration, // Use the converted duration
+      maxPoints: computedPoints, // automatically computed
       progLangIDs: editSelectedProgLangs,
       questions: editFormData.questions
         .filter(q => q.questionName.trim() !== '')
         .map(q => ({
           questionID: q.questionID,
-          itemTypeID: q.itemTypeID
+          itemTypeID: q.itemTypeID,
+          actQuestionPoints: q.questionPoints
         }))
     };
-    console.log("Updating Activity with:", updatedActivity);
+  
     try {
       const response = await editActivity(selectedActivity.actID, updatedActivity);
-      console.log("Edit Activity Response:", response);
       if (!response.error) {
         alert("Activity edited successfully.");
         setShowEditModal(false);
@@ -336,8 +429,23 @@ export const TeacherClassManagementComponent = () => {
       console.error("Error editing activity:", err);
     }
   };
+  
 
-  // --------------- Rendering ---------------
+  // -------------------- Helper: Format Date String --------------------
+  const formatDateString = (dateString) => {
+    if (!dateString) return "N/A";
+    const dateObj = new Date(dateString);
+    const day = String(dateObj.getDate()).padStart(2, '0'); 
+    const monthName = dateObj.toLocaleString('default', { month: 'long' });
+    const year = dateObj.getFullYear();
+    let hours = dateObj.getHours();
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${day} ${monthName} ${year} ${hours}:${minutes}${ampm}`;
+  };
+
+  // -------------------- Rendering --------------------
   return (
     <>
       <TeacherCMNavigationBarComponent />
@@ -356,22 +464,6 @@ export const TeacherClassManagementComponent = () => {
         >
           + Create New Activity
         </button>
-        <button 
-          className="edit-mode-toggle-button" 
-          onClick={() => {
-            setEditMode(!editMode);
-            setSelectedActivity(null);
-          }}
-        >
-          {editMode ? "Exit Edit Mode" : "Enter Edit Mode"}
-        </button>
-        {editMode && (
-          <div className="edit-delete-buttons">
-            <button onClick={handleEdit}>Edit</button>
-            <button onClick={handleDelete}>Delete</button>
-            <button onClick={handleDeleteAll}>Delete All</button>
-          </div>
-        )}
       </div>
 
       <div className='class-management'>
@@ -388,26 +480,40 @@ export const TeacherClassManagementComponent = () => {
                 <p>No ongoing activities found.</p>
               ) : (
                 ongoingActivities.map((activity) => {
+                  const languages = activity.programming_languages || [];
                   return (
                     <div 
                       key={`ongoing-${activity.actID}`} 
-                      className="class-activities"
-                      onClick={() => handleActivityClick(activity)}
-                      style={{
-                        cursor: "pointer",
-                        backgroundColor: isSelected(activity) ? "yellow" : "transparent"
-                      }}
+                      className="class-activities" 
+                      style={{ position: "relative", cursor: "pointer" }}
+                      onClick={() => handleActivityCardClick(activity)}
                     >
+                      {/* 3-dots Menu Button */}
+                      <div className="activity-menu-container" style={{ position: "absolute", top: "10px", right: "10px" }}>
+                        <button 
+                          className="menu-btn" 
+                          onClick={(e) => toggleMenu(e, activity.actID)}
+                          style={{ background: "none", border: "none" }}
+                        >
+                          <FontAwesomeIcon icon={faEllipsisV} />
+                        </button>
+                        {openMenu === activity.actID && (
+                          <div className="activity-menu" style={{ position: "absolute", top: "30px", right: "0", background: "white", border: "1px solid #ccc", zIndex: 10 }}>
+                            <div onClick={(e) => handleEditClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Edit</div>
+                            <div onClick={(e) => handleDeleteClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Delete</div>
+                            <div onClick={(e) => handleCopyLinkClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Copy Link</div>
+                          </div>
+                        )}
+                      </div>
+
                       <Row>
                         <Col className='activity-details-column'>
                           <div className='class-activity-details'>
                             <h3>{activity.actTitle}</h3>
                             <p className="activity-description">{activity.actDesc}</p>
-                            {/* Display multiple programming languages */}
                             <div className="lang-container">
-                              {(activity.programming_languages || []).length > 0 ? (
-                                activity.programming_languages.map((lang, index) => {
-                                  // Use our mapping if available; otherwise, display the language's name
+                              {languages.length > 0 ? (
+                                languages.map((lang, index) => {
                                   const mapping = programmingLanguageMap[lang.progLangID] || { name: lang.progLangName, image: null };
                                   return (
                                     <button disabled key={lang.progLangID} className="lang-btn">
@@ -419,7 +525,7 @@ export const TeacherClassManagementComponent = () => {
                                         />
                                       )}
                                       {mapping.name}
-                                      {index < activity.programming_languages.length - 1 ? ", " : ""}
+                                      {index < languages.length - 1 ? ", " : ""}
                                     </button>
                                   );
                                 })
@@ -427,8 +533,23 @@ export const TeacherClassManagementComponent = () => {
                                 "N/A"
                               )}
                             </div>
-                            <p><i className='bi bi-calendar-check'></i> {activity.startDate}</p>
-                            <p><i className='bi bi-calendar-x'></i> {activity.endDate}</p>
+                            <p>
+                              <i className='bi bi-calendar-check'></i>{" "}
+                              Open Date: {formatDateString(activity.openDate)}
+                            </p>
+                            <p>
+                              <i className='bi bi-calendar-x'></i>{" "}
+                              Close Date: {formatDateString(activity.closeDate)}
+                            </p>
+                            <div>
+                              <strong>Time Left: </strong>
+                              <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
+                            </div>
+                            {/* NEW: Display Activity Duration with Clock Icon */}
+                            <div>
+                              <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
+                              Duration: {activity.actDuration ? activity.actDuration : "N/A"}
+                            </div>
                           </div>
                         </Col>
                         <Col className='activity-stats'>
@@ -456,24 +577,40 @@ export const TeacherClassManagementComponent = () => {
                 <p>No completed activities found.</p>
               ) : (
                 completedActivities.map((activity) => {
+                  const languages = activity.programming_languages || [];
                   return (
                     <div 
                       key={`completed-${activity.actID}`}
                       className="class-activities"
-                      onClick={() => handleActivityClick(activity)}
-                      style={{
-                        cursor: "pointer",
-                        backgroundColor: isSelected(activity) ? "yellow" : "transparent"
-                      }}
+                      style={{ position: "relative", cursor: "pointer" }}
+                      onClick={() => handleActivityCardClick(activity)}
                     >
+                      {/* 3-dots Menu Button */}
+                      <div className="activity-menu-container" style={{ position: "absolute", top: "10px", right: "10px" }}>
+                        <button 
+                          className="menu-btn" 
+                          onClick={(e) => toggleMenu(e, activity.actID)}
+                          style={{ background: "none", border: "none" }}
+                        >
+                          <FontAwesomeIcon icon={faEllipsisV} />
+                        </button>
+                        {openMenu === activity.actID && (
+                          <div className="activity-menu" style={{ position: "absolute", top: "30px", right: "0", background: "white", border: "1px solid #ccc", zIndex: 10 }}>
+                            <div onClick={(e) => handleEditClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Edit</div>
+                            <div onClick={(e) => handleDeleteClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Delete</div>
+                            <div onClick={(e) => handleCopyLinkClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Copy Link</div>
+                          </div>
+                        )}
+                      </div>
+
                       <Row>
                         <Col className='activity-details-column'>
                           <div className='class-activity-details'>
                             <h3>{activity.actTitle}</h3>
                             <p className="activity-description">{activity.actDesc}</p>
                             <div className="lang-container">
-                              {(activity.programming_languages || []).length > 0 ? (
-                                activity.programming_languages.map((lang, index) => {
+                              {languages.length > 0 ? (
+                                languages.map((lang, index) => {
                                   const mapping = programmingLanguageMap[lang.progLangID] || { name: lang.progLangName, image: null };
                                   return (
                                     <button disabled key={lang.progLangID} className="lang-btn">
@@ -485,7 +622,7 @@ export const TeacherClassManagementComponent = () => {
                                         />
                                       )}
                                       {mapping.name}
-                                      {index < activity.programming_languages.length - 1 ? ", " : ""}
+                                      {index < languages.length - 1 ? ", " : ""}
                                     </button>
                                   );
                                 })
@@ -493,13 +630,28 @@ export const TeacherClassManagementComponent = () => {
                                 "N/A"
                               )}
                             </div>
-                            <p><i className='bi bi-calendar-check'></i> {activity.startDate}</p>
-                            <p><i className='bi bi-calendar-x'></i> {activity.endDate}</p>
+                            <div>
+                              <i className='bi bi-calendar-check'></i>{" "}
+                              Open Date: {formatDateString(activity.openDate)}
+                            </div>
+                            <p>
+                              <i className='bi bi-calendar-x'></i>{" "}
+                              Close Date: {formatDateString(activity.closeDate)}
+                            </p>
+                            <p>
+                              <strong>Time Left: </strong>
+                              <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
+                            </p>
+                            {/* NEW: Display Activity Duration with Clock Icon */}
+                            <div>
+                              <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
+                              Duration: {activity.actDuration ? activity.actDuration : "N/A"}
+                            </div>
                           </div>
                         </Col>
                         <Col className='activity-stats'>
                           <div className='score-chart'>
-                            <h4>{activity.classAvgScore ?? "N/A"}%</h4>
+                            <h4>{activity.classAvgScore ?? "N/A"}</h4>
                             <p>Class Avg. Score</p>
                           </div>
                           <div className='score-chart'>
@@ -547,8 +699,8 @@ export const TeacherClassManagementComponent = () => {
               <Form.Label>Difficulty</Form.Label>
               <Form.Control 
                 as="select" 
-                value={editFormData.difficulty} 
-                onChange={(e) => setEditFormData({ ...editFormData, difficulty: e.target.value })}
+                value={editFormData.actDifficulty} 
+                onChange={(e) => setEditFormData({ ...editFormData, actDifficulty: e.target.value })}
                 required
               >
                 <option value="">Select Difficulty</option>
@@ -561,23 +713,33 @@ export const TeacherClassManagementComponent = () => {
               <Form.Label>Open Date and Time</Form.Label>
               <Form.Control 
                 type="datetime-local" 
-                value={editFormData.startDate} 
-                onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                value={editFormData.openDate} 
+                onChange={(e) => setEditFormData({ ...editFormData, openDate: e.target.value })}
                 required
               />
             </Form.Group>
             <Form.Group controlId="formEndDate" className="mt-3">
-              <Form.Label>Due Date and Time</Form.Label>
+              <Form.Label>Close Date and Time</Form.Label>
               <Form.Control 
                 type="datetime-local" 
-                value={editFormData.endDate} 
-                onChange={(e) => setEditFormData({ ...editFormData, endDate: e.target.value })}
+                value={editFormData.closeDate} 
+                onChange={(e) => setEditFormData({ ...editFormData, closeDate: e.target.value })}
                 required
               />
             </Form.Group>
-            {/* Multi-Language Checkboxes for Editing */}
-            <Form.Group className="mt-3">
-              <Form.Label>Select Programming Languages (Edit Mode)</Form.Label>
+            {/* NEW: Duration Input as Time */}
+            <Form.Group controlId="formDuration" className="mt-3">
+              <Form.Label>Activity Duration (in minutes)</Form.Label>
+              <Form.Control 
+                type="number"
+                min="0"
+                value={editFormData.actDuration || ""}
+                onChange={(e) => setEditFormData({ ...editFormData, actDuration: e.target.value })}
+                required
+              />
+            </Form.Group>
+            <Form.Group controlId="formSelectProgLang" className="mt-3">
+              <Form.Label>Select Programming Languages</Form.Label>
               <div style={{ marginBottom: "0.5rem" }}>
                 <Form.Check 
                   type="checkbox"
@@ -600,13 +762,15 @@ export const TeacherClassManagementComponent = () => {
               ))}
             </Form.Group>
             <Form.Group controlId="formMaxPoints" className="mt-3">
-              <Form.Label>Total Points</Form.Label>
+              <Form.Label>Total Points (automatically computed)</Form.Label>
               <Form.Control 
                 type="number" 
-                placeholder="Enter total points" 
-                value={editFormData.maxPoints} 
-                onChange={(e) => setEditFormData({ ...editFormData, maxPoints: e.target.value })}
-                required 
+                value={
+                  editFormData.questions
+                    .filter(q => q && q.questionPoints)
+                    .reduce((sum, q) => sum + q.questionPoints, 0)
+                }
+                readOnly
               />
             </Form.Group>
             <Form.Group className="mt-3">
@@ -616,7 +780,11 @@ export const TeacherClassManagementComponent = () => {
                   key={index}
                   type="text"
                   placeholder={`Question ${index + 1}`}
-                  value={q.questionName}
+                  value={
+                    q.questionName
+                      ? `${q.questionName} - ${q.questionPoints || 0} pts`
+                      : ""
+                  }
                   readOnly
                   onClick={() => handleQuestionClick(index)}
                   className="mt-2"
@@ -673,9 +841,9 @@ export const TeacherClassManagementComponent = () => {
               <Button 
                 key={idx} 
                 className={`question-item d-block ${selectedQuestion === pq ? 'highlighted' : ''}`} 
-                onClick={() => handleSelectQuestion(pq)}
+                onClick={() => setSelectedQuestion(pq)}
               >
-                {pq.questionName} - {pq.difficulty}
+                {pq.questionName} - {pq.questionDifficulty} - {pq.questionPoints} pts
               </Button>
             ))}
           </Modal.Body>
@@ -684,6 +852,40 @@ export const TeacherClassManagementComponent = () => {
             <Button variant="danger" onClick={handleRemoveQuestion}>Remove Question</Button>
           </Modal.Footer>
         </div>
+      </Modal>
+
+      {/* -------------------- Delete Confirmation Modal -------------------- */}
+      <Modal show={showDeleteModal} onHide={() => { setShowDeleteModal(false); setDeletePassword(""); }}>
+        <Modal.Header closeButton>
+          <Modal.Title>Confirm Delete Activity</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group controlId="deletePassword">
+            <Form.Label>Enter Password</Form.Label>
+            <div className="d-flex">
+              <Form.Control
+                type={showDeletePassword ? "text" : "password"}
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+              />
+              <Button 
+                variant="outline-secondary" 
+                onClick={() => setShowDeletePassword(!showDeletePassword)}
+                style={{ marginLeft: "5px" }}
+              >
+                <FontAwesomeIcon icon={showDeletePassword ? faEyeSlash : faEye} />
+              </Button>
+            </div>
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => { setShowDeleteModal(false); setDeletePassword(""); }}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleConfirmDelete}>
+            Confirm Delete
+          </Button>
+        </Modal.Footer>
       </Modal>
     </>
   );

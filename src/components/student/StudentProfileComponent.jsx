@@ -23,7 +23,27 @@ export const StudentProfileComponent = () => {
   const [newCoverImage, setNewCoverImage] = useState(null);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  // Fetch user profile on component mount
+  // -------------------- Helper: Format student number --------------------
+  // This function formats the student number as "xx-xxxxx-xxx"
+  const formatStudentNumber = (value) => {
+    // Remove any non-digit characters
+    let digits = value.replace(/\D/g, '');
+    // Limit to 10 digits (2 + 5 + 3)
+    digits = digits.slice(0, 10);
+    let formatted = "";
+    if (digits.length > 0) {
+      formatted = digits.slice(0, 2);
+    }
+    if (digits.length > 2) {
+      formatted += '-' + digits.slice(2, 7);
+    }
+    if (digits.length > 7) {
+      formatted += '-' + digits.slice(7, 10);
+    }
+    return formatted;
+  };
+
+  // -------------------- Fetch Profile --------------------
   useEffect(() => {
     const fetchProfile = async () => {
       const data = await getProfile();
@@ -40,12 +60,17 @@ export const StudentProfileComponent = () => {
     fetchProfile();
   }, []);
 
-  // Handle input changes
+  // -------------------- Handle Input Changes --------------------
   const handleInputChange = (e) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === "student_num") {
+      setProfile({ ...profile, student_num: formatStudentNumber(value) });
+    } else {
+      setProfile({ ...profile, [name]: value });
+    }
   };
 
-  // Handle file uploads: store the file object
+  // -------------------- Handle File Changes --------------------
   const handleFileChange = (e, type) => {
     const file = e.target.files[0];
     if (file) {
@@ -57,7 +82,7 @@ export const StudentProfileComponent = () => {
     }
   };
 
-  // Save profile changes using FormData
+  // -------------------- Save Profile Changes --------------------
   const handleSaveChanges = async () => {
     // Build the updatedProfile object
     const updatedProfile = { ...profile };
@@ -78,23 +103,21 @@ export const StudentProfileComponent = () => {
     if (!response.error) {
       alert("Profile updated successfully!");
       setShowEditModal(false);
-      // Optionally refresh the page or re-fetch the profile data here.
+      // Optionally, refresh the profile data
       window.location.reload();
     } else {
       alert("Failed to update profile: " + response.error);
     }
   };
 
-  // Handle profile deletion
+  // -------------------- Handle Profile Deletion --------------------
   const handleDeleteProfile = async () => {
-    // Confirm deletion with the user
     const confirmDelete = window.confirm("Are you sure you want to delete your profile? This action cannot be undone.");
     if (!confirmDelete) return;
 
     const response = await deleteProfile();
     if (!response.error) {
       alert("Profile deleted successfully!");
-      // Clear session or redirect to home
       window.location.href = "/home";
     } else {
       alert("Failed to delete profile: " + response.error);
@@ -153,7 +176,14 @@ export const StudentProfileComponent = () => {
               <input type='text' name='lastname' value={profile.lastname} onChange={handleInputChange} className='form-control' />
 
               <label>Student #:</label>
-              <input type='text' name='student_num' value={profile.student_num} onChange={handleInputChange} className='form-control' />
+              <input
+                type='text'
+                name='student_num'
+                value={profile.student_num}
+                onChange={handleInputChange}
+                className='form-control'
+                placeholder="xx-xxxxx-xxx"
+              />
 
               <label>Program:</label>
               <select name="program" value={profile.program} onChange={handleInputChange} className="form-control">
@@ -196,27 +226,27 @@ export const StudentProfileComponent = () => {
         </div>
         <div className='col-8'>
           <div className='container performance-container'>
-              <div className='performance-content'>   
-                  <p className='title'>Performance</p>
-                  <span className='border border-dark'></span>
-                  <div className='analysis'>
-                      <h4>Graph Analysis</h4>
-                      <div className='row graph'>
-                          <div className='col-7 linear'>
-                              <img src='/src/assets/graph.png' alt='graph'/>
-                          </div>
-                          <div className='col-3 bar'>
-                              <img src='/src/assets/bar.png' alt='bar'/>
-                          </div>
-                      </div>
-                      <h6>Strengths</h6>
-                      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
-                      <h6>Weaknesses</h6>
-                      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+            <div className='performance-content'>   
+              <p className='title'>Performance</p>
+              <span className='border border-dark'></span>
+              <div className='analysis'>
+                <h4>Graph Analysis</h4>
+                <div className='row graph'>
+                  <div className='col-7 linear'>
+                    <img src='/src/assets/graph.png' alt='graph'/>
                   </div>
+                  <div className='col-3 bar'>
+                    <img src='/src/assets/bar.png' alt='bar'/>
+                  </div>
+                </div>
+                <h6>Strengths</h6>
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+                <h6>Weaknesses</h6>
+                <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
               </div>
+            </div>
           </div>
-      </div>
+        </div>
       </div>
     </>
   );
