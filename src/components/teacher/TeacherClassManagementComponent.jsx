@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useParams} from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Row, Tabs, Col, Tab, Modal, Button, Form } from 'react-bootstrap';
 import TeacherCMNavigationBarComponent from './TeacherCMNavigationBarComponent';
 import "../../style/teacher/cmActivities.css"; 
@@ -10,7 +10,7 @@ import {
   getQuestions, 
   getItemTypes, 
   getProgrammingLanguages,
-  verifyPassword   // <-- Imported here from your API module
+  verifyPassword
 } from "../api/API"; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCaretDown, faEllipsisV, faEye, faEyeSlash, faClock } from '@fortawesome/free-solid-svg-icons';
@@ -19,7 +19,7 @@ import { faCaretDown, faEllipsisV, faEye, faEyeSlash, faClock } from '@fortaweso
 const programmingLanguageMap = {
   1: { name: "Java", image: "/src/assets/java2.png" },
   2: { name: "C#", image: "/src/assets/c.png" },
-  3: { name: "Python", image: "/src/assets/py.png" }
+  3: { name: "Python", image: "/src/assets/py.png" },
 };
 
 // Timer component calculates time remaining.
@@ -89,14 +89,13 @@ export const TeacherClassManagementComponent = () => {
     actDifficulty: '',
     openDate: '',
     closeDate: '',
-    // maxPoints will be computed automatically now
     maxPoints: '',
     questions: ['', '', '']
   });
   const [allProgrammingLanguages, setAllProgrammingLanguages] = useState([]);
   const [editSelectedProgLangs, setEditSelectedProgLangs] = useState([]);
 
-  // -------------------- Question Selection Modal --------------------
+  // -------------------- Question Selection Modal State --------------------
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(null);
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
@@ -105,6 +104,15 @@ export const TeacherClassManagementComponent = () => {
   const [qItemTypes, setQItemTypes] = useState([]);
   const [qPresetQuestions, setQPresetQuestions] = useState([]);
   const [showItemTypeDropdown, setShowItemTypeDropdown] = useState(false);
+  // New: Scope for filtering preset questions ("personal" or "global")
+  const [questionBankScope, setQuestionBankScope] = useState("personal");
+  // Sorting States for Question Modal
+  const [qSortField, setQSortField] = useState("questionName");
+  const [qSortOrder, setQSortOrder] = useState("asc");
+
+  // -------------------- Sorting States for Activities --------------------
+  const [sortField, setSortField] = useState("openDate");
+  const [sortOrder, setSortOrder] = useState("asc");
 
   // -------------------- 3-dots Menu State --------------------
   const [openMenu, setOpenMenu] = useState(null);
@@ -115,9 +123,10 @@ export const TeacherClassManagementComponent = () => {
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeletePassword, setShowDeletePassword] = useState(false);
 
+  // -------------------- REFRESH ACTIVITIES --------------------
   useEffect(() => {
     fetchActivities();
-    const interval = setInterval(fetchActivities, 10000);
+    const interval = setInterval(fetchActivities, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -131,7 +140,7 @@ export const TeacherClassManagementComponent = () => {
     if (qSelectedItemType) {
       fetchQPresetQuestions();
     }
-  }, [qSelectedItemType]);
+  }, [qSelectedItemType, questionBankScope]);
 
   // -------------------- API Fetching --------------------
   const fetchActivities = async () => {
@@ -144,15 +153,9 @@ export const TeacherClassManagementComponent = () => {
       const response = await getClassActivities(classID);
       console.log("🟢 API Response:", response);
       if (!response.error) {
-        const now = new Date();
-        const upcoming = response.ongoing.filter(act => new Date(act.openDate) > now);
-        const ongoing = response.ongoing.filter(
-          act => new Date(act.openDate) <= now && new Date(act.closeDate) > now
-        );
-        const completed = response.completed;
-        setUpcomingActivities(upcoming);
-        setOngoingActivities(ongoing);
-        setCompletedActivities(completed);
+        setUpcomingActivities(response.upcoming);
+        setOngoingActivities(response.ongoing);
+        setCompletedActivities(response.completed);
       } else {
         console.error("❌ Failed to fetch activities:", response.error);
       }
@@ -185,8 +188,10 @@ export const TeacherClassManagementComponent = () => {
     }
   };
 
+  // Updated to pass scope and teacherID from sessionStorage
   const fetchQPresetQuestions = async () => {
-    const response = await getQuestions(qSelectedItemType);
+    const teacherID = sessionStorage.getItem("userID");
+    const response = await getQuestions(qSelectedItemType, { scope: questionBankScope, teacherID });
     if (!response.error) {
       setQPresetQuestions(response);
     } else {
@@ -232,14 +237,12 @@ export const TeacherClassManagementComponent = () => {
       });
   };
 
-  // -------------------- Delete Confirmation Handler --------------------
   const handleConfirmDelete = async () => {
     const teacherEmail = sessionStorage.getItem("user_email");
     if (!teacherEmail) {
       alert("Teacher email not found. Please log in again.");
       return;
     }
-    // Use the imported verifyPassword function here
     const verification = await verifyPassword(teacherEmail, deletePassword);
     if (verification.error) {
       alert(verification.error);
@@ -277,10 +280,8 @@ export const TeacherClassManagementComponent = () => {
 
   const handleSaveQuestion = () => {
     if (selectedQuestion === null || selectedQuestionIndex === null) return;
-    // Check if the same question is already picked
     const duplicate = editFormData.questions.some((q, i) =>
-      i !== selectedQuestionIndex &&
-      q.questionID === selectedQuestion.questionID
+      i !== selectedQuestionIndex && q.questionID === selectedQuestion.questionID
     );
     if (duplicate) {
       alert("❌ You already picked that question. Please choose a different one.");
@@ -290,8 +291,13 @@ export const TeacherClassManagementComponent = () => {
     updatedQuestions[selectedQuestionIndex] = {
       questionID: selectedQuestion.questionID,
       questionName: selectedQuestion.questionName,
+      questionDifficulty: selectedQuestion.questionDifficulty || "-",
       itemTypeID: selectedQuestion.itemTypeID,
-      questionPoints: selectedQuestion.questionPoints // store the points
+      questionPoints: selectedQuestion.questionPoints,
+      programming_languages:
+        selectedQuestion.programmingLanguages ||
+        selectedQuestion.programming_languages ||
+        []
     };
     setEditFormData({ ...editFormData, questions: updatedQuestions });
     setSelectedQuestion(null);
@@ -304,8 +310,10 @@ export const TeacherClassManagementComponent = () => {
       updatedQuestions[selectedQuestionIndex] = {
         questionID: null,
         questionName: "",
+        questionDifficulty: "-",
         itemTypeID: null,
-        questionPoints: 0
+        questionPoints: 0,
+        programming_languages: []
       };
       setEditFormData({ ...editFormData, questions: updatedQuestions });
       setSelectedQuestion(null);
@@ -319,7 +327,7 @@ export const TeacherClassManagementComponent = () => {
     setShowItemTypeDropdown(false);
   };
 
-  // -------------------- Programming Languages Checkboxes --------------------
+  // -------------------- Programming Languages Checkboxes for Edit Modal --------------------
   const handleEditProgLangToggle = (langID) => {
     if (editSelectedProgLangs.includes(langID)) {
       setEditSelectedProgLangs(editSelectedProgLangs.filter(id => id !== langID));
@@ -345,17 +353,24 @@ export const TeacherClassManagementComponent = () => {
       existingQuestions = activity.questions.map(q => ({
         questionID: q?.question?.questionID || null,
         questionName: q?.question?.questionName || "",
+        questionDifficulty: q?.question?.questionDifficulty || "-",
         itemTypeID: q?.itemTypeID || null,
-        questionPoints: q?.question?.questionPoints || 0
+        questionPoints: q?.question?.questionPoints || 0,
+        programming_languages: q?.question?.programmingLanguages || q?.question?.programming_languages || []
       }));
     }
     while (existingQuestions.length < 3) {
-      existingQuestions.push({ questionID: null, questionName: "", itemTypeID: null, questionPoints: 0 });
+      existingQuestions.push({ 
+        questionID: null, 
+        questionName: "", 
+        questionDifficulty: "-",
+        itemTypeID: null, 
+        questionPoints: 0, 
+        programming_languages: [] 
+      });
     }
-    // Convert actDuration (HH:MM:SS) to total minutes
     let totalMinutes = "";
     if (activity.actDuration) {
-      // Extract hours and minutes; ignore seconds.
       const parts = activity.actDuration.split(":");
       if (parts.length >= 2) {
         totalMinutes = String(parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10));
@@ -368,7 +383,7 @@ export const TeacherClassManagementComponent = () => {
       openDate: activity.openDate ? activity.openDate.slice(0, 16) : '',
       closeDate: activity.closeDate ? activity.closeDate.slice(0, 16) : '',
       maxPoints: activity.maxPoints ? activity.maxPoints.toString() : '',
-      actDuration: totalMinutes,  // Store total minutes as a string
+      actDuration: totalMinutes,
       questions: existingQuestions
     });
     const existingLangIDs = (activity.programming_languages || []).map(lang => lang.progLangID);
@@ -379,16 +394,14 @@ export const TeacherClassManagementComponent = () => {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!selectedActivity) return;
-    // Compute total points from selected questions
     const computedPoints = editFormData.questions
       .filter(q => q && q.questionPoints)
       .reduce((sum, q) => sum + q.questionPoints, 0);
   
-    // Convert the numeric minutes to HH:MM:SS format
     const total = parseInt(editFormData.actDuration, 10);
     const hh = String(Math.floor(total / 60)).padStart(2, "0");
     const mm = String(total % 60).padStart(2, "0");
-    const ss = "00"; // fixed seconds
+    const ss = "00";
     const finalDuration = `${hh}:${mm}:${ss}`;
   
     const updatedActivity = {
@@ -397,8 +410,8 @@ export const TeacherClassManagementComponent = () => {
       actDifficulty: editFormData.actDifficulty,
       openDate: editFormData.openDate || selectedActivity.openDate,
       closeDate: editFormData.closeDate,
-      actDuration: finalDuration, // Use the converted duration
-      maxPoints: computedPoints, // automatically computed
+      actDuration: finalDuration,
+      maxPoints: computedPoints,
       progLangIDs: editSelectedProgLangs,
       questions: editFormData.questions
         .filter(q => q.questionName.trim() !== '')
@@ -430,10 +443,8 @@ export const TeacherClassManagementComponent = () => {
     }
   };
   
-
-  // -------------------- Helper: Format Date String --------------------
   const formatDateString = (dateString) => {
-    if (!dateString) return "N/A";
+    if (!dateString) return "-";
     const dateObj = new Date(dateString);
     const day = String(dateObj.getDate()).padStart(2, '0'); 
     const monthName = dateObj.toLocaleString('default', { month: 'long' });
@@ -445,14 +456,86 @@ export const TeacherClassManagementComponent = () => {
     return `${day} ${monthName} ${year} ${hours}:${minutes}${ampm}`;
   };
 
+  const handleSortByOpenDate = () => {
+    if (sortField === "openDate") {
+      setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField("openDate");
+      setSortOrder("asc");
+    }
+  };
+  
+  const handleSortByCloseDate = () => {
+    if (sortField === "closeDate") {
+      setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField("closeDate");
+      setSortOrder("asc");
+    }
+  };
+
+  // -------------------- Derived Sorted Arrays for Activities --------------------
+  const sortedOngoingActivities = [...ongoingActivities].sort((a, b) => {
+    const dateA = new Date(a[sortField]);
+    const dateB = new Date(b[sortField]);
+    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+  });
+  
+  const sortedCompletedActivities = [...completedActivities].sort((a, b) => {
+    const dateA = new Date(a[sortField]);
+    const dateB = new Date(b[sortField]);
+    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+  });
+
+  // -------------------- Sorting Functions for Question Modal --------------------
+  const toggleQSortOrder = (field) => {
+    if (qSortField === field) {
+      setQSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setQSortField(field);
+      setQSortOrder("asc");
+    }
+  };
+
+  // Mapping difficulty levels to numeric order
+  const difficultyOrder = {
+    "Beginner": 1,
+    "Intermediate": 2,
+    "Advanced": 3
+  };
+
+  const sortedQPresetQuestions = [...qPresetQuestions].sort((a, b) => {
+    let fieldA, fieldB;
+    switch (qSortField) {
+      case "questionName":
+        fieldA = (a.questionName || "").toLowerCase();
+        fieldB = (b.questionName || "").toLowerCase();
+        break;
+      case "questionDifficulty":
+        fieldA = difficultyOrder[a.questionDifficulty] || 0;
+        fieldB = difficultyOrder[b.questionDifficulty] || 0;
+        break;
+      case "questionPoints":
+        fieldA = a.questionPoints || 0;
+        fieldB = b.questionPoints || 0;
+        break;
+      default:
+        fieldA = (a.questionName || "").toLowerCase();
+        fieldB = (b.questionName || "").toLowerCase();
+    }
+    if (fieldA < fieldB) return qSortOrder === "asc" ? -1 : 1;
+    if (fieldA > fieldB) return qSortOrder === "asc" ? 1 : -1;
+    return 0;
+  });
+
   // -------------------- Rendering --------------------
   return (
     <>
       <TeacherCMNavigationBarComponent />
       <div className="create-new-activity-wrapper"></div>
       <div className="create-new-activity-container">
-        <button 
-          className="create-new-activity-button" 
+        <button
+          className="create-new-activity-button"
           onClick={() => {
             const classID = sessionStorage.getItem("selectedClassID");
             if (!classID) {
@@ -466,61 +549,112 @@ export const TeacherClassManagementComponent = () => {
         </button>
       </div>
 
-      <div className='class-management'>
-        <div className='container class-content'>
+      {/* Sorting Controls for Activities */}
+      <div style={{ margin: "20px 0" }}>
+        <span>Sort by: </span>
+        <Button variant="link" onClick={handleSortByOpenDate}>
+          Open Date{" "}
+          {sortField === "openDate" && (
+            <FontAwesomeIcon
+              icon={faCaretDown}
+              style={{
+                transform: sortOrder === "asc" ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s",
+              }}
+            />
+          )}
+        </Button>
+        <Button variant="link" onClick={handleSortByCloseDate}>
+          Close Date{" "}
+          {sortField === "closeDate" && (
+            <FontAwesomeIcon
+              icon={faCaretDown}
+              style={{
+                transform: sortOrder === "asc" ? "rotate(180deg)" : "rotate(0deg)",
+                transition: "transform 0.2s",
+              }}
+            />
+          )}
+        </Button>
+      </div>
+
+      <div className="class-management">
+        <div className="container class-content">
           <Tabs defaultActiveKey={contentKey} id="tab" onSelect={(k) => setContentKey(k)} fill>
+            <Tab eventKey="upcoming" title="Upcoming"></Tab>
             <Tab eventKey="ongoing" title="Ongoing"></Tab>
             <Tab eventKey="completed" title="Completed"></Tab>
           </Tabs>
 
-          {/* Ongoing Activities */}
-          {contentKey === "ongoing" && (
-            <div className='ongoing-class-activities'>
-              {ongoingActivities.length === 0 ? (
-                <p>No ongoing activities found.</p>
+          {/* Upcoming Activities */}
+          {contentKey === "upcoming" && (
+            <div className="upcoming-class-activities">
+              {upcomingActivities.length === 0 ? (
+                <p>No upcoming activities found.</p>
               ) : (
-                ongoingActivities.map((activity) => {
+                upcomingActivities.map((activity) => {
                   const languages = activity.programming_languages || [];
                   return (
-                    <div 
-                      key={`ongoing-${activity.actID}`} 
-                      className="class-activities" 
+                    <div
+                      key={`upcoming-${activity.actID}`}
+                      className="class-activities"
                       style={{ position: "relative", cursor: "pointer" }}
                       onClick={() => handleActivityCardClick(activity)}
                     >
                       {/* 3-dots Menu Button */}
-                      <div className="activity-menu-container" style={{ position: "absolute", top: "10px", right: "10px" }}>
-                        <button 
-                          className="menu-btn" 
+                      <div
+                        className="activity-menu-container"
+                        style={{ position: "absolute", top: "10px", right: "10px" }}
+                      >
+                        <button
+                          className="menu-btn"
                           onClick={(e) => toggleMenu(e, activity.actID)}
                           style={{ background: "none", border: "none" }}
                         >
                           <FontAwesomeIcon icon={faEllipsisV} />
                         </button>
                         {openMenu === activity.actID && (
-                          <div className="activity-menu" style={{ position: "absolute", top: "30px", right: "0", background: "white", border: "1px solid #ccc", zIndex: 10 }}>
-                            <div onClick={(e) => handleEditClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Edit</div>
-                            <div onClick={(e) => handleDeleteClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Delete</div>
-                            <div onClick={(e) => handleCopyLinkClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Copy Link</div>
+                          <div
+                            className="activity-menu"
+                            style={{
+                              position: "absolute",
+                              top: "30px",
+                              right: "0",
+                              background: "white",
+                              border: "1px solid #ccc",
+                              zIndex: 10,
+                            }}
+                          >
+                            <div onClick={(e) => handleEditClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Edit
+                            </div>
+                            <div onClick={(e) => handleDeleteClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Delete
+                            </div>
+                            <div onClick={(e) => handleCopyLinkClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Copy Link
+                            </div>
                           </div>
                         )}
                       </div>
 
                       <Row>
-                        <Col className='activity-details-column'>
-                          <div className='class-activity-details'>
+                        <Col className="activity-details-column">
+                          <div className="class-activity-details">
                             <h3>{activity.actTitle}</h3>
                             <p className="activity-description">{activity.actDesc}</p>
                             <div className="lang-container">
                               {languages.length > 0 ? (
                                 languages.map((lang, index) => {
-                                  const mapping = programmingLanguageMap[lang.progLangID] || { name: lang.progLangName, image: null };
+                                  const mapping =
+                                    programmingLanguageMap[lang.progLangID] ||
+                                    { name: lang.progLangName, image: null };
                                   return (
                                     <button disabled key={lang.progLangID} className="lang-btn">
                                       {mapping.image && (
-                                        <img 
-                                          src={mapping.image} 
-                                          alt={`${mapping.name} Icon`} 
+                                        <img
+                                          src={mapping.image}
+                                          alt={`${mapping.name} Icon`}
                                           style={{ width: "20px", marginRight: "5px" }}
                                         />
                                       )}
@@ -530,35 +664,157 @@ export const TeacherClassManagementComponent = () => {
                                   );
                                 })
                               ) : (
-                                "N/A"
+                                "-"
                               )}
                             </div>
                             <p>
-                              <i className='bi bi-calendar-check'></i>{" "}
+                              <i className="bi bi-calendar-check"></i>{" "}
                               Open Date: {formatDateString(activity.openDate)}
                             </p>
                             <p>
-                              <i className='bi bi-calendar-x'></i>{" "}
+                              <i className="bi bi-calendar-x"></i>{" "}
                               Close Date: {formatDateString(activity.closeDate)}
                             </p>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "-"}</h6>
                             <div>
                               <strong>Time Left: </strong>
                               <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
                             </div>
-                            {/* NEW: Display Activity Duration with Clock Icon */}
                             <div>
                               <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
-                              Duration: {activity.actDuration ? activity.actDuration : "N/A"}
+                              Duration: {activity.actDuration ? activity.actDuration : "-"}
                             </div>
                           </div>
                         </Col>
-                        <Col className='activity-stats'>
-                          <div className='score-chart'>
-                            <h4>{activity.classAvgScore ?? "N/A"}%</h4>
+                        <Col className="activity-stats">
+                          <div className="score-chart">
+                            <h4>{activity.classAvgScore ?? "-"}%</h4>
                             <p>Class Avg. Score</p>
                           </div>
-                          <div className='score-chart'>
-                            <h4>{activity.highestScore ?? "N/A"} / {activity.maxPoints ?? "N/A"}</h4>
+                          <div className="score-chart">
+                            <h4>
+                              {activity.highestScore ?? "-"} / {activity.maxPoints ?? "-"}
+                            </h4>
+                            <p>Highest Score</p>
+                          </div>
+                        </Col>
+                      </Row>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* Ongoing Activities */}
+          {contentKey === "ongoing" && (
+            <div className="ongoing-class-activities">
+              {sortedOngoingActivities.length === 0 ? (
+                <p>No ongoing activities found.</p>
+              ) : (
+                sortedOngoingActivities.map((activity) => {
+                  const languages = activity.programming_languages || [];
+                  return (
+                    <div
+                      key={`ongoing-${activity.actID}`}
+                      className="class-activities"
+                      style={{ position: "relative", cursor: "pointer" }}
+                      onClick={() => handleActivityCardClick(activity)}
+                    >
+                      {/* 3-dots Menu Button */}
+                      <div
+                        className="activity-menu-container"
+                        style={{ position: "absolute", top: "10px", right: "10px" }}
+                      >
+                        <button
+                          className="menu-btn"
+                          onClick={(e) => toggleMenu(e, activity.actID)}
+                          style={{ background: "none", border: "none" }}
+                        >
+                          <FontAwesomeIcon icon={faEllipsisV} />
+                        </button>
+                        {openMenu === activity.actID && (
+                          <div
+                            className="activity-menu"
+                            style={{
+                              position: "absolute",
+                              top: "30px",
+                              right: "0",
+                              background: "white",
+                              border: "1px solid #ccc",
+                              zIndex: 10,
+                            }}
+                          >
+                            <div onClick={(e) => handleEditClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Edit
+                            </div>
+                            <div onClick={(e) => handleDeleteClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Delete
+                            </div>
+                            <div onClick={(e) => handleCopyLinkClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Copy Link
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <Row>
+                        <Col className="activity-details-column">
+                          <div className="class-activity-details">
+                            <h3>{activity.actTitle}</h3>
+                            <p className="activity-description">{activity.actDesc}</p>
+                            <div className="lang-container">
+                              {languages.length > 0 ? (
+                                languages.map((lang, index) => {
+                                  const mapping =
+                                    programmingLanguageMap[lang.progLangID] ||
+                                    { name: lang.progLangName, image: null };
+                                  return (
+                                    <button disabled key={lang.progLangID} className="lang-btn">
+                                      {mapping.image && (
+                                        <img
+                                          src={mapping.image}
+                                          alt={`${mapping.name} Icon`}
+                                          style={{ width: "20px", marginRight: "5px" }}
+                                        />
+                                      )}
+                                      {mapping.name}
+                                      {index < languages.length - 1 ? ", " : ""}
+                                    </button>
+                                  );
+                                })
+                              ) : (
+                                "-"
+                              )}
+                            </div>
+                            <p>
+                              <i className="bi bi-calendar-check"></i>{" "}
+                              Open Date: {formatDateString(activity.openDate)}
+                            </p>
+                            <p>
+                              <i className="bi bi-calendar-x"></i>{" "}
+                              Close Date: {formatDateString(activity.closeDate)}
+                            </p>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "-"}</h6>
+                            <div>
+                              <strong>Time Left: </strong>
+                              <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
+                            </div>
+                            <div>
+                              <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
+                              Duration: {activity.actDuration ? activity.actDuration : "-"}
+                            </div>
+                          </div>
+                        </Col>
+                        <Col className="activity-stats">
+                          <div className="score-chart">
+                            <h4>{activity.classAvgScore ?? "-"}%</h4>
+                            <p>Class Avg. Score</p>
+                          </div>
+                          <div className="score-chart">
+                            <h4>
+                              {activity.highestScore ?? "-"} / {activity.maxPoints ?? "-"}
+                            </h4>
                             <p>Highest Score</p>
                           </div>
                         </Col>
@@ -572,52 +828,73 @@ export const TeacherClassManagementComponent = () => {
 
           {/* Completed Activities */}
           {contentKey === "completed" && (
-            <div className='completed-class-activities'>
-              {completedActivities.length === 0 ? (
+            <div className="completed-class-activities">
+              {sortedCompletedActivities.length === 0 ? (
                 <p>No completed activities found.</p>
               ) : (
-                completedActivities.map((activity) => {
+                sortedCompletedActivities.map((activity) => {
                   const languages = activity.programming_languages || [];
                   return (
-                    <div 
+                    <div
                       key={`completed-${activity.actID}`}
                       className="class-activities"
                       style={{ position: "relative", cursor: "pointer" }}
                       onClick={() => handleActivityCardClick(activity)}
                     >
                       {/* 3-dots Menu Button */}
-                      <div className="activity-menu-container" style={{ position: "absolute", top: "10px", right: "10px" }}>
-                        <button 
-                          className="menu-btn" 
+                      <div
+                        className="activity-menu-container"
+                        style={{ position: "absolute", top: "10px", right: "10px" }}
+                      >
+                        <button
+                          className="menu-btn"
                           onClick={(e) => toggleMenu(e, activity.actID)}
                           style={{ background: "none", border: "none" }}
                         >
                           <FontAwesomeIcon icon={faEllipsisV} />
                         </button>
                         {openMenu === activity.actID && (
-                          <div className="activity-menu" style={{ position: "absolute", top: "30px", right: "0", background: "white", border: "1px solid #ccc", zIndex: 10 }}>
-                            <div onClick={(e) => handleEditClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Edit</div>
-                            <div onClick={(e) => handleDeleteClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Delete</div>
-                            <div onClick={(e) => handleCopyLinkClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>Copy Link</div>
+                          <div
+                            className="activity-menu"
+                            style={{
+                              position: "absolute",
+                              top: "30px",
+                              right: "0",
+                              background: "white",
+                              border: "1px solid #ccc",
+                              zIndex: 10,
+                            }}
+                          >
+                            <div onClick={(e) => handleEditClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Edit
+                            </div>
+                            <div onClick={(e) => handleDeleteClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Delete
+                            </div>
+                            <div onClick={(e) => handleCopyLinkClick(e, activity)} style={{ padding: "5px", cursor: "pointer" }}>
+                              Copy Link
+                            </div>
                           </div>
                         )}
                       </div>
 
                       <Row>
-                        <Col className='activity-details-column'>
-                          <div className='class-activity-details'>
+                        <Col className="activity-details-column">
+                          <div className="class-activity-details">
                             <h3>{activity.actTitle}</h3>
                             <p className="activity-description">{activity.actDesc}</p>
                             <div className="lang-container">
                               {languages.length > 0 ? (
                                 languages.map((lang, index) => {
-                                  const mapping = programmingLanguageMap[lang.progLangID] || { name: lang.progLangName, image: null };
+                                  const mapping =
+                                    programmingLanguageMap[lang.progLangID] ||
+                                    { name: lang.progLangName, image: null };
                                   return (
                                     <button disabled key={lang.progLangID} className="lang-btn">
                                       {mapping.image && (
-                                        <img 
-                                          src={mapping.image} 
-                                          alt={`${mapping.name} Icon`} 
+                                        <img
+                                          src={mapping.image}
+                                          alt={`${mapping.name} Icon`}
                                           style={{ width: "20px", marginRight: "5px" }}
                                         />
                                       )}
@@ -627,35 +904,37 @@ export const TeacherClassManagementComponent = () => {
                                   );
                                 })
                               ) : (
-                                "N/A"
+                                "-"
                               )}
                             </div>
-                            <div>
-                              <i className='bi bi-calendar-check'></i>{" "}
-                              Open Date: {formatDateString(activity.openDate)}
-                            </div>
                             <p>
-                              <i className='bi bi-calendar-x'></i>{" "}
+                              <i className="bi bi-calendar-check"></i>{" "}
+                              Open Date: {formatDateString(activity.openDate)}
+                            </p>
+                            <p>
+                              <i className="bi bi-calendar-x"></i>{" "}
                               Close Date: {formatDateString(activity.closeDate)}
                             </p>
-                            <p>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "-"}</h6>
+                            <div>
                               <strong>Time Left: </strong>
                               <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
-                            </p>
-                            {/* NEW: Display Activity Duration with Clock Icon */}
+                            </div>
                             <div>
                               <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
-                              Duration: {activity.actDuration ? activity.actDuration : "N/A"}
+                              Duration: {activity.actDuration ? activity.actDuration : "-"}
                             </div>
                           </div>
                         </Col>
-                        <Col className='activity-stats'>
-                          <div className='score-chart'>
-                            <h4>{activity.classAvgScore ?? "N/A"}</h4>
+                        <Col className="activity-stats">
+                          <div className="score-chart">
+                            <h4>{activity.classAvgScore ?? "-"}</h4>
                             <p>Class Avg. Score</p>
                           </div>
-                          <div className='score-chart'>
-                            <h4>{activity.highestScore ?? "N/A"} / {activity.maxPoints ?? "N/A"}</h4>
+                          <div className="score-chart">
+                            <h4>
+                              {activity.highestScore ?? "-"} / {activity.maxPoints ?? "-"}
+                            </h4>
                             <p>Highest Score</p>
                           </div>
                         </Col>
@@ -670,7 +949,7 @@ export const TeacherClassManagementComponent = () => {
       </div>
 
       {/* -------------------- Edit Activity Modal -------------------- */}
-      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg">
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} size="lg" backdrop='static' keyboard={false}>
         <Modal.Header closeButton>
           <Modal.Title>Edit Activity</Modal.Title>
         </Modal.Header>
@@ -678,28 +957,28 @@ export const TeacherClassManagementComponent = () => {
           <Modal.Body>
             <Form.Group controlId="formActivityTitle">
               <Form.Label>Activity Title</Form.Label>
-              <Form.Control 
-                type="text" 
-                value={editFormData.actTitle} 
+              <Form.Control
+                type="text"
+                value={editFormData.actTitle}
                 onChange={(e) => setEditFormData({ ...editFormData, actTitle: e.target.value })}
                 required
               />
             </Form.Group>
             <Form.Group controlId="formActivityDesc" className="mt-3">
               <Form.Label>Activity Description</Form.Label>
-              <Form.Control 
-                as="textarea" 
-                rows={3} 
-                value={editFormData.actDesc} 
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={editFormData.actDesc}
                 onChange={(e) => setEditFormData({ ...editFormData, actDesc: e.target.value })}
                 required
               />
             </Form.Group>
             <Form.Group controlId="formDifficulty" className="mt-3">
               <Form.Label>Difficulty</Form.Label>
-              <Form.Control 
-                as="select" 
-                value={editFormData.actDifficulty} 
+              <Form.Control
+                as="select"
+                value={editFormData.actDifficulty}
                 onChange={(e) => setEditFormData({ ...editFormData, actDifficulty: e.target.value })}
                 required
               >
@@ -711,28 +990,27 @@ export const TeacherClassManagementComponent = () => {
             </Form.Group>
             <Form.Group controlId="formStartDate" className="mt-3">
               <Form.Label>Open Date and Time</Form.Label>
-              <Form.Control 
-                type="datetime-local" 
-                value={editFormData.openDate} 
+              <Form.Control
+                type="datetime-local"
+                value={editFormData.openDate}
                 onChange={(e) => setEditFormData({ ...editFormData, openDate: e.target.value })}
                 required
               />
             </Form.Group>
             <Form.Group controlId="formEndDate" className="mt-3">
               <Form.Label>Close Date and Time</Form.Label>
-              <Form.Control 
-                type="datetime-local" 
-                value={editFormData.closeDate} 
+              <Form.Control
+                type="datetime-local"
+                value={editFormData.closeDate}
                 onChange={(e) => setEditFormData({ ...editFormData, closeDate: e.target.value })}
                 required
               />
             </Form.Group>
-            {/* NEW: Duration Input as Time */}
             <Form.Group controlId="formDuration" className="mt-3">
               <Form.Label>Activity Duration (in minutes)</Form.Label>
-              <Form.Control 
+              <Form.Control
                 type="number"
-                min="0"
+                min="1"  // Enforces duration > 0 minutes
                 value={editFormData.actDuration || ""}
                 onChange={(e) => setEditFormData({ ...editFormData, actDuration: e.target.value })}
                 required
@@ -741,7 +1019,7 @@ export const TeacherClassManagementComponent = () => {
             <Form.Group controlId="formSelectProgLang" className="mt-3">
               <Form.Label>Select Programming Languages</Form.Label>
               <div style={{ marginBottom: "0.5rem" }}>
-                <Form.Check 
+                <Form.Check
                   type="checkbox"
                   label="Applicable to all"
                   checked={
@@ -752,7 +1030,7 @@ export const TeacherClassManagementComponent = () => {
                 />
               </div>
               {allProgrammingLanguages.map((lang) => (
-                <Form.Check 
+                <Form.Check
                   key={lang.progLangID}
                   type="checkbox"
                   label={lang.progLangName}
@@ -763,34 +1041,63 @@ export const TeacherClassManagementComponent = () => {
             </Form.Group>
             <Form.Group controlId="formMaxPoints" className="mt-3">
               <Form.Label>Total Points (automatically computed)</Form.Label>
-              <Form.Control 
-                type="number" 
+              <Form.Control
+                type="number"
                 value={
                   editFormData.questions
-                    .filter(q => q && q.questionPoints)
+                    .filter((q) => q && q.questionPoints)
                     .reduce((sum, q) => sum + q.questionPoints, 0)
                 }
                 readOnly
               />
             </Form.Group>
+
             <Form.Group className="mt-3">
               <Form.Label>Questions (up to 3)</Form.Label>
               {editFormData.questions.map((q, index) => (
-                <Form.Control
+                <div
                   key={index}
-                  type="text"
-                  placeholder={`Question ${index + 1}`}
-                  value={
-                    q.questionName
-                      ? `${q.questionName} - ${q.questionPoints || 0} pts`
-                      : ""
-                  }
-                  readOnly
+                  className="question-edit-item mt-2"
+                  style={{ display: "flex", alignItems: "center" }}
                   onClick={() => handleQuestionClick(index)}
-                  className="mt-2"
-                />
+                >
+                  <Form.Control
+                    type="text"
+                    placeholder={`Question ${index + 1}`}
+                    value={
+                      q.questionName
+                        ? `${q.questionName} | ${q.questionDifficulty || "-"} | ${q.questionPoints || 0} pts`
+                        : ""
+                    }
+                    readOnly
+                    style={{ flex: 1 }}
+                  />
+                  {q.programming_languages && q.programming_languages.length > 0 && (
+                    <div style={{ marginLeft: "8px" }}>
+                      {q.programming_languages.map((lang, idx) => {
+                        const mapping = programmingLanguageMap[lang.progLangID] || {
+                          name: lang.progLangName,
+                          image: null
+                        };
+                        return mapping.image ? (
+                          <img
+                            key={idx}
+                            src={mapping.image}
+                            alt={mapping.name}
+                            style={{ width: "20px", marginRight: "5px" }}
+                          />
+                        ) : (
+                          <span key={idx} style={{ marginRight: "5px", fontSize: "12px" }}>
+                            {mapping.name}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               ))}
             </Form.Group>
+
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowEditModal(false)}>
@@ -804,11 +1111,11 @@ export const TeacherClassManagementComponent = () => {
       </Modal>
 
       {/* -------------------- Question Selection Modal -------------------- */}
-      <Modal 
-        show={showQuestionModal} 
-        onHide={handleQuestionModalClose} 
-        dialogClassName="custom-modal" 
-        backdropClassName="custom-modal-backdrop" 
+      <Modal
+        show={showQuestionModal}
+        onHide={() => setShowQuestionModal(false)}
+        dialogClassName="custom-modal"
+        backdropClassName="custom-modal-backdrop"
         centered={false}
       >
         <div className="custom-modal-content">
@@ -817,45 +1124,110 @@ export const TeacherClassManagementComponent = () => {
           </Modal.Header>
           <Modal.Body>
             <h5>Item Type:</h5>
-            <Button 
-              variant="light" 
-              onClick={() => setShowItemTypeDropdown(!showItemTypeDropdown)}
-            >
+            <Button variant="light" onClick={() => setShowItemTypeDropdown(!showItemTypeDropdown)}>
               {qItemTypeName} <FontAwesomeIcon icon={faCaretDown} />
             </Button>
             {showItemTypeDropdown && (
               <div className="item-type-dropdown">
-                {qItemTypes.map((type) => (
-                  <Button 
-                    key={type.itemTypeID} 
-                    className="dropdown-item" 
-                    onClick={() => handleItemTypeSelect(type)}
-                  >
+                {qItemTypes.map(type => (
+                  <Button key={type.itemTypeID} className="dropdown-item" onClick={() => handleItemTypeSelect(type)}>
                     {type.itemTypeName}
                   </Button>
                 ))}
               </div>
             )}
 
-            {qPresetQuestions.map((pq, idx) => (
-              <Button 
-                key={idx} 
-                className={`question-item d-block ${selectedQuestion === pq ? 'highlighted' : ''}`} 
-                onClick={() => setSelectedQuestion(pq)}
+            {/* NEW: Question Creator Selector */}
+            <div className="filter-section" style={{ marginBottom: "10px" }}>
+              <label>Question Creator:</label>
+              <select
+                value={questionBankScope}
+                onChange={(e) => {
+                  setQuestionBankScope(e.target.value);
+                  fetchQPresetQuestions();
+                }}
               >
-                {pq.questionName} - {pq.questionDifficulty} - {pq.questionPoints} pts
+                <option value="personal">Created by Me</option>
+                <option value="global">NEUDev</option>
+              </select>
+            </div>
+
+            {/* Sorting Controls for Preset Questions */}
+            <div
+              style={{
+                margin: "10px 0",
+                display: "flex",
+                alignItems: "center",
+                padding: "5px",
+                borderRadius: "4px",
+                backgroundColor: "#f8f9fa"
+              }}
+            >
+              <span style={{ marginRight: "8px" }}>Sort by:</span>
+              <Button variant="link" onClick={() => toggleQSortOrder("questionName")}>
+                Name {qSortField === "questionName" && (qSortOrder === "asc" ? "↑" : "↓")}
               </Button>
-            ))}
+              <Button variant="link" onClick={() => toggleQSortOrder("questionDifficulty")}>
+                Difficulty {qSortField === "questionDifficulty" && (qSortOrder === "asc" ? "↑" : "↓")}
+              </Button>
+              <Button variant="link" onClick={() => toggleQSortOrder("questionPoints")}>
+                Points {qSortField === "questionPoints" && (qSortOrder === "asc" ? "↑" : "↓")}
+              </Button>
+            </div>
+
+            {sortedQPresetQuestions.length === 0 ? (
+              <p>
+                There are no questions yet. Please go to the{' '}
+                <a href="/teacher/question">Question Bank</a> to create questions.
+              </p>
+            ) : (
+              sortedQPresetQuestions.map((q, idx) => (
+                <Button
+                  key={idx}
+                  className={`question-item d-block ${selectedQuestion === q ? "highlighted" : ""}`}
+                  onClick={() => setSelectedQuestion(q)}
+                  style={{ textAlign: "left", marginBottom: "8px" }}
+                >
+                  {/* Basic Question Info */}
+                  <div>
+                    <strong>{q.questionName}</strong> | {q.questionDifficulty} | {q.questionPoints} pts
+                  </div>
+                  {/* Programming Language Icons */}
+                  <div style={{ marginTop: "5px" }}>
+                    {(q.programming_languages || q.programmingLanguages || []).map((langObj, i) => {
+                      const plID = langObj.progLangID; 
+                      const mapping = programmingLanguageMap[plID] || { name: langObj.progLangName, image: null };
+                      return mapping.image ? (
+                        <img
+                          key={i}
+                          src={mapping.image}
+                          alt={mapping.name}
+                          style={{ width: "20px", marginRight: "5px" }}
+                        />
+                      ) : (
+                        <span key={i} style={{ marginRight: "5px", fontSize: "12px" }}>
+                          {mapping.name}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </Button>
+              ))
+            )}
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="secondary" onClick={handleSaveQuestion}>Save Question</Button>
-            <Button variant="danger" onClick={handleRemoveQuestion}>Remove Question</Button>
+            <Button variant="secondary" onClick={handleSaveQuestion}>
+              Save Question
+            </Button>
+            <Button variant="danger" onClick={handleRemoveQuestion}>
+              Remove Question
+            </Button>
           </Modal.Footer>
         </div>
       </Modal>
 
       {/* -------------------- Delete Confirmation Modal -------------------- */}
-      <Modal show={showDeleteModal} onHide={() => { setShowDeleteModal(false); setDeletePassword(""); }}>
+      <Modal show={showDeleteModal} backdrop='static' keyboard={false} onHide={() => { setShowDeleteModal(false); setDeletePassword(""); }}>
         <Modal.Header closeButton>
           <Modal.Title>Confirm Delete Activity</Modal.Title>
         </Modal.Header>
@@ -868,8 +1240,8 @@ export const TeacherClassManagementComponent = () => {
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
               />
-              <Button 
-                variant="outline-secondary" 
+              <Button
+                variant="outline-secondary"
                 onClick={() => setShowDeletePassword(!showDeletePassword)}
                 style={{ marginLeft: "5px" }}
               >

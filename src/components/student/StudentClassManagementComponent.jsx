@@ -5,7 +5,7 @@ import StudentCMNavigationBarComponent from './StudentCMNavigationBarComponent';
 import "../../style/teacher/cmActivities.css"; 
 import { getStudentActivities } from "../api/API"; 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClock } from '@fortawesome/free-solid-svg-icons';
+import { faClock, faCaretDown } from '@fortawesome/free-solid-svg-icons';
 
 // Mapping of known programming languages to icons
 const programmingLanguageMap = {
@@ -14,8 +14,10 @@ const programmingLanguageMap = {
   "Python": { name: "Python", image: "/src/assets/py.png" }
 };
 
-// Timer component displays a countdown timer as "HH:MM:SS".
-// If time left is <= 10 minutes, the timer text turns red and bold.
+/**
+ * Timer component displays a countdown timer as "HH:MM:SS".
+ * If time left is <= 10 minutes, the timer text turns red and bold.
+ */
 const Timer = ({ openDate, closeDate }) => {
   const [timeLeft, setTimeLeft] = useState("00:00:00");
   const [isTimeLow, setIsTimeLow] = useState(false);
@@ -28,8 +30,10 @@ const Timer = ({ openDate, closeDate }) => {
       let diff = 0;
 
       if (now < open) {
+        // Activity hasn't started yet
         diff = open - now;
       } else if (now >= open && now <= close) {
+        // Activity ongoing
         diff = close - now;
       } else {
         diff = 0;
@@ -42,9 +46,7 @@ const Timer = ({ openDate, closeDate }) => {
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        const formatted = `${hours.toString().padStart(2, '0')}:${minutes
-          .toString()
-          .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        const formatted = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         setTimeLeft(formatted);
         setIsTimeLow(diff <= 10 * 60 * 1000);
       }
@@ -69,26 +71,69 @@ export const StudentClassManagementComponent = () => {
   const navigate = useNavigate();
   const { classID } = useParams();
 
-  // Tab states
+  // Tab state
   const [contentKey, setContentKey] = useState('ongoing');
 
-  // Activities states
+  // Activities state
   const [ongoingActivities, setOngoingActivities] = useState([]);
   const [completedActivities, setCompletedActivities] = useState([]);
   const [upcomingActivities, setUpcomingActivities] = useState([]);
 
-  // Modal states for finished activities
+  // Modal states for finished/upcoming activities
   const [showModal, setShowModal] = useState(false);
   const [modalMessage, setModalMessage] = useState("");
+  const [modalTitle, setModalTitle] = useState("");
 
-  // NEW: Modal state for "Take Activity" confirmation
+  // Modal state for confirming to take an ongoing activity
   const [showTakeModal, setShowTakeModal] = useState(false);
   const [selectedActivityForAssessment, setSelectedActivityForAssessment] = useState(null);
 
+  // New sorting states for activities
+  const [sortField, setSortField] = useState("openDate");  // can be "openDate" or "closeDate"
+  const [sortOrder, setSortOrder] = useState("asc");         // "asc" or "desc"
+
+  // Handler functions for sorting
+  const handleSortByOpenDate = () => {
+    if (sortField === "openDate") {
+      setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField("openDate");
+      setSortOrder("asc");
+    }
+  };
+
+  const handleSortByCloseDate = () => {
+    if (sortField === "closeDate") {
+      setSortOrder(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField("closeDate");
+      setSortOrder("asc");
+    }
+  };
+
+  // Derived sorted arrays for each activity type:
+  const sortedUpcomingActivities = [...upcomingActivities].sort((a, b) => {
+    const dateA = new Date(a[sortField]);
+    const dateB = new Date(b[sortField]);
+    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+  });
+
+  const sortedOngoingActivities = [...ongoingActivities].sort((a, b) => {
+    const dateA = new Date(a[sortField]);
+    const dateB = new Date(b[sortField]);
+    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+  });
+
+  const sortedCompletedActivities = [...completedActivities].sort((a, b) => {
+    const dateA = new Date(a[sortField]);
+    const dateB = new Date(b[sortField]);
+    return sortOrder === "asc" ? dateA - dateB : dateB - dateA;
+  });
+
+  // -------------------- Lifecycle: Fetch Activities --------------------
   useEffect(() => {
     fetchActivities();
-    // Re-fetch activities every 10 seconds
-    const interval = setInterval(fetchActivities, 10000);
+    const interval = setInterval(fetchActivities, 5000);
     return () => clearInterval(interval);
   }, []);
 
@@ -101,19 +146,16 @@ export const StudentClassManagementComponent = () => {
         console.error("❌ Failed to fetch activities:", response?.error);
         return;
       }
-      const now = new Date();
-
-      // Filter activities using openDate and closeDate
-      const upcoming = response.ongoing.filter(act => new Date(act.openDate) > now);
-      const ongoing  = response.ongoing.filter(
-        act => new Date(act.openDate) <= now && new Date(act.closeDate) > now
+      // Assuming your API returns { upcoming, ongoing, completed }
+      const filteredUpcoming = (response.upcoming || []).filter(
+        act => String(act.classID) === String(classID)
       );
-      const completed = response.completed;
-
-      // Further filter by the current classID.
-      const filteredUpcoming = upcoming.filter(act => String(act.classID) === String(classID));
-      const filteredOngoing  = ongoing.filter(act => String(act.classID) === String(classID));
-      const filteredCompleted = completed.filter(act => String(act.classID) === String(classID));
+      const filteredOngoing = (response.ongoing || []).filter(
+        act => String(act.classID) === String(classID)
+      );
+      const filteredCompleted = (response.completed || []).filter(
+        act => String(act.classID) === String(classID)
+      );
 
       setUpcomingActivities(filteredUpcoming);
       setOngoingActivities(filteredOngoing);
@@ -123,13 +165,18 @@ export const StudentClassManagementComponent = () => {
     }
   };
 
-  // Handle click on an activity.
-  // If the activity's closeDate has passed, show a modal.
-  // Otherwise, show a confirmation modal to take the activity.
+  // Handle activity click
   const handleActivityClick = (activity) => {
     const now = new Date();
+    const activityOpen = new Date(activity.openDate);
     const activityClose = new Date(activity.closeDate);
-    if (now > activityClose) {
+    
+    if (now < activityOpen) {
+      setModalTitle("Activity Not Yet Started");
+      setModalMessage("This activity is upcoming and will start on " + formatDateString(activity.openDate) + ".");
+      setShowModal(true);
+    } else if (now > activityClose) {
+      setModalTitle("Activity Finished");
       setModalMessage("This activity is finished and can no longer be accessed.");
       setShowModal(true);
     } else {
@@ -141,7 +188,7 @@ export const StudentClassManagementComponent = () => {
   // Helper to render multiple languages
   const renderLanguages = (languagesArray) => {
     if (!Array.isArray(languagesArray) || languagesArray.length === 0) {
-      return "N/A";
+      return "-";
     }
     return (
       <div className="lang-container">
@@ -172,7 +219,7 @@ export const StudentClassManagementComponent = () => {
 
   // Helper: Format date/time like "05 November 2024 10:29AM"
   const formatDateString = (dateString) => {
-    if (!dateString) return "N/A";
+    if (!dateString) return "-";
     const dateObj = new Date(dateString);
     const day = String(dateObj.getDate()).padStart(2, '0'); 
     const monthName = dateObj.toLocaleString('default', { month: 'long' });
@@ -189,23 +236,116 @@ export const StudentClassManagementComponent = () => {
       <StudentCMNavigationBarComponent />
       <div className='class-management'>
         <div className='container class-content'>
+          {/* Sorting Controls for Activities */}
+          <div style={{ margin: "20px 0" }}>
+            <span>Sort by: </span>
+            <Button variant="link" onClick={handleSortByOpenDate}>
+              Open Date{" "}
+              {sortField === "openDate" && (
+                <FontAwesomeIcon
+                  icon={faCaretDown}
+                  style={{
+                    transform: sortOrder === "asc" ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                  }}
+                />
+              )}
+            </Button>
+            <Button variant="link" onClick={handleSortByCloseDate}>
+              Close Date{" "}
+              {sortField === "closeDate" && (
+                <FontAwesomeIcon
+                  icon={faCaretDown}
+                  style={{
+                    transform: sortOrder === "asc" ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                  }}
+                />
+              )}
+            </Button>
+          </div>
+
           <Tabs
             defaultActiveKey={contentKey}
             id="tab"
             onSelect={(k) => setContentKey(k)}
             fill
           >
+            <Tab eventKey="upcoming" title="Upcoming"></Tab>
             <Tab eventKey="ongoing" title="Ongoing"></Tab>
             <Tab eventKey="completed" title="Completed"></Tab>
           </Tabs>
 
-          {/* Ongoing Activities */}
+          {/* -------------------- Upcoming Activities -------------------- */}
+          {contentKey === "upcoming" && (
+            <div className='upcoming-class-activities'>
+              {sortedUpcomingActivities.length === 0 ? (
+                <p>No upcoming activities found.</p>
+              ) : (
+                sortedUpcomingActivities.map((activity) => {
+                  const languages = activity.programmingLanguages || activity.programming_languages || [];
+                  return (
+                    <div 
+                      className='class-activities' 
+                      key={`upcoming-${activity.actID}`} 
+                      onClick={() => handleActivityClick(activity)}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <Row>
+                        <Col className='activity-details-column'>
+                          <div className='class-activity-details'>
+                            <h3>{activity.actTitle}</h3>
+                            <p><strong>Professor:</strong> {activity.teacherName}</p>
+                            <p className="activity-description">{activity.actDesc}</p>
+                            {renderLanguages(languages)}
+                            <p>
+                              <i className='bi bi-calendar-check'></i>{" "}
+                              Open Date: {formatDateString(activity.openDate)}
+                            </p>
+                            <p>
+                              <i className='bi bi-calendar-x'></i>{" "}
+                              Close Date: {formatDateString(activity.closeDate)}
+                            </p>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "-"}</h6>
+                            <div style={{ marginTop: "5px" }}>
+                              <strong>Time Left: </strong>
+                              <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
+                            </div>
+                          </div>
+                        </Col>
+                        <Col className='activity-stats'>
+                          <div className='score-chart'>
+                            <h4>{activity.rank ?? "-"}</h4>
+                            <p>Rank</p>
+                          </div>
+                          <div className='score-chart'>
+                            <h4>
+                              {activity.overallScore !== null 
+                                ? `${activity.overallScore} / ${activity.maxPoints ?? "-"}` 
+                                : `- / ${activity.maxPoints ?? "-"}`}
+                            </h4>
+                            <p>Overall Score</p>
+                          </div>
+                          <div className='score-chart'>
+                            <h4>{activity.actDuration ? activity.actDuration : "-"}</h4>
+                            <p>Duration</p>
+                          </div>
+                        </Col>
+                      </Row>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* -------------------- Ongoing Activities -------------------- */}
           {contentKey === "ongoing" && (
             <div className='ongoing-class-activities'>
-              {ongoingActivities.length === 0 ? (
+              {sortedOngoingActivities.length === 0 ? (
                 <p>No ongoing activities found.</p>
               ) : (
-                ongoingActivities.map((activity) => {
+                sortedOngoingActivities.map((activity) => {
                   const languages = activity.programmingLanguages || activity.programming_languages || [];
                   return (
                     <div 
@@ -221,7 +361,6 @@ export const StudentClassManagementComponent = () => {
                             <p><strong>Professor:</strong> {activity.teacherName}</p>
                             <p className="activity-description">{activity.actDesc}</p>
                             {renderLanguages(languages)}
-                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "N/A"}</h6>
                             <p>
                               <i className='bi bi-calendar-check'></i>{" "}
                               Open Date: {formatDateString(activity.openDate)}
@@ -230,6 +369,7 @@ export const StudentClassManagementComponent = () => {
                               <i className='bi bi-calendar-x'></i>{" "}
                               Close Date: {formatDateString(activity.closeDate)}
                             </p>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "-"}</h6>
                             <div style={{ marginTop: "5px" }}>
                               <strong>Time Left: </strong>
                               <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
@@ -238,22 +378,19 @@ export const StudentClassManagementComponent = () => {
                         </Col>
                         <Col className='activity-stats'>
                           <div className='score-chart'>
-                            <h4>{activity.rank ?? "N/A"}</h4>
+                            <h4>{activity.rank ?? "-"}</h4>
                             <p>Rank</p>
                           </div>
                           <div className='score-chart'>
                             <h4>
                               {activity.overallScore !== null 
-                                ? `${activity.overallScore} / ${activity.maxPoints ?? "N/A"}`
-                                : `N/A / ${activity.maxPoints ?? "N/A"}`}
+                                ? `${activity.overallScore} / ${activity.maxPoints ?? "-"}` 
+                                : `- / ${activity.maxPoints ?? "-"}`}
                             </h4>
                             <p>Overall Score</p>
                           </div>
-                          {/* Show duration with "min" appended */}
                           <div className='score-chart'>
-                            <h4>
-                              {activity.actDuration ? activity.actDuration : "N/A"}
-                            </h4>
+                            <h4>{activity.actDuration ? activity.actDuration : "-"}</h4>
                             <p>Duration</p>
                           </div>
                         </Col>
@@ -265,13 +402,13 @@ export const StudentClassManagementComponent = () => {
             </div>
           )}
 
-          {/* Completed Activities */}
+          {/* -------------------- Completed Activities -------------------- */}
           {contentKey === "completed" && (
             <div className='completed-class-activities'>
-              {completedActivities.length === 0 ? (
+              {sortedCompletedActivities.length === 0 ? (
                 <p>No completed activities found.</p>
               ) : (
-                completedActivities.map((activity) => {
+                sortedCompletedActivities.map((activity) => {
                   const languages = activity.programmingLanguages || activity.programming_languages || [];
                   return (
                     <div 
@@ -286,7 +423,6 @@ export const StudentClassManagementComponent = () => {
                             <h3>{activity.actTitle}</h3>
                             <p><strong>Professor:</strong> {activity.teacherName}</p>
                             {renderLanguages(languages)}
-                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "N/A"}</h6>
                             <p>
                               <i className='bi bi-calendar-check'></i>{" "}
                               Open Date: {formatDateString(activity.openDate)}
@@ -295,6 +431,7 @@ export const StudentClassManagementComponent = () => {
                               <i className='bi bi-calendar-x'></i>{" "}
                               Close Date: {formatDateString(activity.closeDate)}
                             </p>
+                            <h6><strong>Difficulty:</strong> {activity.actDifficulty || "-"}</h6>
                             <div style={{ marginTop: "5px" }}>
                               <strong>Time Left: </strong>
                               <Timer openDate={activity.openDate} closeDate={activity.closeDate} />
@@ -303,22 +440,19 @@ export const StudentClassManagementComponent = () => {
                         </Col>
                         <Col className='activity-stats'>
                           <div className='score-chart'>
-                            <h4>{activity.rank ?? "N/A"}</h4>
+                            <h4>{activity.rank ?? "-"}</h4>
                             <p>Rank</p>
                           </div>
                           <div className='score-chart'>
                             <h4>
                               {activity.overallScore !== null 
-                                ? `${activity.overallScore} / ${activity.maxPoints ?? "N/A"}`
-                                : `N/A / ${activity.maxPoints ?? "N/A"}`}
+                                ? `${activity.overallScore} / ${activity.maxPoints ?? "-"}` 
+                                : `- / ${activity.maxPoints ?? "-"}`}
                             </h4>
                             <p>Overall Score</p>
                           </div>
-                          {/* Show duration with "min" appended */}
                           <div className='score-chart'>
-                            <h4>
-                              {activity.actDuration ? activity.actDuration : "N/A"}
-                            </h4>
+                            <h4>{activity.actDuration ? activity.actDuration : "-"}</h4>
                             <p>Duration</p>
                           </div>
                         </Col>
@@ -332,10 +466,10 @@ export const StudentClassManagementComponent = () => {
         </div>
       </div>
       
-      {/* Modal for finished activity */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+      {/* Modal for upcoming/finished activities */}
+      <Modal show={showModal} backdrop='static' keyboard={false} onHide={() => setShowModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Activity Finished</Modal.Title>
+          <Modal.Title>{modalTitle}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <p>{modalMessage}</p>
@@ -347,8 +481,8 @@ export const StudentClassManagementComponent = () => {
         </Modal.Footer>
       </Modal>
       
-      {/* NEW: Modal for confirming to take the activity */}
-      <Modal show={showTakeModal} onHide={() => setShowTakeModal(false)} centered>
+      {/* Modal for confirming to take an ongoing activity */}
+      <Modal show={showTakeModal} backdrop='static' keyboard={false} onHide={() => setShowTakeModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Take Activity</Modal.Title>
         </Modal.Header>
@@ -360,7 +494,7 @@ export const StudentClassManagementComponent = () => {
             <FontAwesomeIcon icon={faClock} style={{ marginRight: "5px" }} />
             Duration: {selectedActivityForAssessment?.actDuration 
               ? selectedActivityForAssessment.actDuration + " min" 
-              : "N/A"}
+              : "-"}
           </p>
         </Modal.Body>
         <Modal.Footer>
@@ -370,7 +504,6 @@ export const StudentClassManagementComponent = () => {
           <Button 
             variant="primary" 
             onClick={() => {
-              // Navigate to the assessment page
               navigate(`/student/class/${classID}/activity/${selectedActivityForAssessment.actID}/assessment`);
             }}
           >
