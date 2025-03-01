@@ -506,18 +506,35 @@ async function getClassActivities(classID) {
     return response;
 }
 
-// ✅ Fetch preset questions based on itemTypeID
-async function getQuestions(itemTypeID) {
+/**
+ * Fetch questions by itemTypeID, optionally including query parameters
+ * such as scope=personal/global and teacherID=1, etc.
+ *
+ * Usage:
+ *   getQuestions(1, { scope: "personal", teacherID: "1" })
+ */
+ async function getQuestions(itemTypeID, query = {}) {
     const token = sessionStorage.getItem("access_token");
     if (!token) return { error: "Unauthorized access: No token found" };
-
-    console.log(`📥 Fetching questions for ItemTypeID: ${itemTypeID}`);
-
-    return await safeFetch(`${API_LINK}/teacher/questions/itemType/${itemTypeID}`, { 
-        method: "GET",
-        headers: { "Authorization": `Bearer ${token}` }
+  
+    // Construct the base URL
+    let url = `${API_LINK}/teacher/questions/itemType/${itemTypeID}`;
+  
+    // Convert the query object to a query string, e.g. { scope: "personal", teacherID: "1" } -> ?scope=personal&teacherID=1
+    const queryString = new URLSearchParams(query).toString();
+    if (queryString) {
+      url += `?${queryString}`;
+    }
+  
+    console.log("📥 Fetching questions from:", url);
+  
+    return await safeFetch(url, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
     });
-}
+  }
 
 // ✅ Fetch available item types dynamically
 async function getItemTypes() {

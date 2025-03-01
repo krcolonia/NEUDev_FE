@@ -111,6 +111,14 @@ body {
     border: none !important;
 }
 
+.upcoming-class-activities{
+    background-color: #FFF5F1;
+    padding: 30px;
+    border-top-right-radius: 20px;
+    border-bottom-right-radius: 20px;
+    border-bottom-left-radius: 20px;
+}
+
 .ongoing-class-activities{
     background-color: #FFF5F1;
     padding: 30px;

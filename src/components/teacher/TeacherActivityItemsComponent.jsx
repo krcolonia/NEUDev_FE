@@ -122,7 +122,7 @@ const TeacherActivityItemsComponent = () => {
                     );
                   })
                 ) : (
-                  "N/A"
+                  "-"
                 )}
               </p>
               <h6>Test Cases:</h6>
