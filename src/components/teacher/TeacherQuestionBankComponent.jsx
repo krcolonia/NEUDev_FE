@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import "../../style/teacher/activityItems.css";
 import { ProfilePlaygroundNavbarComponent } from "../ProfilePlaygroundNavbarComponent.jsx";
@@ -59,7 +59,7 @@ const compilerCodeMap = {
 const codeValidationPatterns = {
   Java: /\b(public\s+class\s+\w+|System\.out\.println|import\s+java\.)\b/,
   Python: /\b(print\s*\(|def\s+\w+\(|import\s+\w+|class\s+\w+|for\s+\w+\s+in|while\s+|if\s+)/,
-  'C#': /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/
+  "C#": /\b(using\s+System;|namespace\s+\w+|Console\.WriteLine)\b/
 };
 
 function isValidCodeForLanguage(code, languageName) {
@@ -92,16 +92,14 @@ export default function TeacherQuestionBankComponent() {
   const [itemTypes, setItemTypes] = useState([]);
   const [selectedItemType, setSelectedItemType] = useState(null);
   const [allProgLanguages, setAllProgLanguages] = useState([]);
-  // "loading" is used for the initial load.
   const [loading, setLoading] = useState(true);
-  // "questionScope" selects between "personal" (Created by Me) and "global" (NEUDev)
   const [questionScope, setQuestionScope] = useState("personal");
 
   // -------------------- Modals --------------------
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [showOutputModal, setShowOutputModal] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   // -------------------- Question Data (for create/edit) --------------------
   const [questionData, setQuestionData] = useState({
@@ -118,24 +116,43 @@ export default function TeacherQuestionBankComponent() {
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeletePassword, setShowDeletePassword] = useState(false);
 
-  // -------------------- Code Testing --------------------
-  const [code, setCode] = useState("// Write your sample solution here");
+  // -------------------- Code Testing / Terminal State --------------------
+  const [code, setCode] = useState("");
   const [testLangID, setTestLangID] = useState(null);
   const [compiling, setCompiling] = useState(false);
-  const [rawOutput, setRawOutput] = useState("");
-  const [runtimeInput, setRuntimeInput] = useState("");
+  const [terminalLines, setTerminalLines] = useState([]);
+  const [terminalPartialLine, setTerminalPartialLine] = useState("");
+  const [terminalUserInput, setTerminalUserInput] = useState("");
+  const [showTerminalModal, setShowTerminalModal] = useState(false);
+  const [testCaseAdded, setTestCaseAdded] = useState(false);
+  const [errorOutput, setErrorOutput] = useState("");
 
   // -------------------- New State for Date Sorting --------------------
   const [dateSortOrder, setDateSortOrder] = useState("desc");
 
-  // Toggle sort order when clicking on the date column header
-  function toggleDateSortOrder() {
-    setDateSortOrder(prev => (prev === "desc" ? "asc" : "desc"));
+  // WebSocket references for terminal
+  const wsRef = useRef(null);
+  const inputRef = useRef(null);
+  
+  // Ref to track if any error occurred
+  const errorRef = useRef(false);
+
+  // Ref to accumulate output lines
+  const outputRef = useRef("");
+
+  // Helper: place caret at end of contentEditable element
+  function placeCaretAtEnd(el) {
+    if (!el) return;
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
   }
 
   // -------------------- Polling: Fetch Questions --------------------
   useEffect(() => {
-    // On mount and when selectedItemType or questionScope changes, fetch questions.
     if (selectedItemType !== null) {
       fetchQuestions(selectedItemType);
     }
@@ -160,7 +177,11 @@ export default function TeacherQuestionBankComponent() {
       } else {
         setTestLangID(null);
       }
-      setRuntimeInput("");
+      // Reset terminal-related state for each new run
+      setTerminalLines([]);
+      setTerminalPartialLine("");
+      setTerminalUserInput("");
+      setTestCaseAdded(false);
     }
   }, [showCreateModal, showEditModal, questionData.progLangIDs]);
 
@@ -198,14 +219,11 @@ export default function TeacherQuestionBankComponent() {
   }
 
   async function fetchQuestions(itemTypeID) {
-    // We keep the old questions until new ones arrive.
     setLoading(true);
     try {
       const teacherID = sessionStorage.getItem("userID");
-      // Pass scope and teacherID as query parameters.
       const response = await getQuestions(itemTypeID, { scope: questionScope, teacherID });
       if (!response || response.error || !Array.isArray(response)) {
-        // Do not clear existing questions if an error occurs.
         console.error("Error fetching questions:", response?.error);
       } else {
         setQuestions(response);
@@ -278,11 +296,10 @@ export default function TeacherQuestionBankComponent() {
       questionPoints: computedQuestionPoints,
       testCases: isConsoleApp
         ? questionData.testCases.filter(tc =>
-            tc.inputData.trim() !== "" || tc.expectedOutput.trim() !== ""
+            tc.expectedOutput.trim() !== ""
           )
         : []
     };
-    // For personal questions, add teacherID to payload.
     if (showCreateModal && questionScope === "personal") {
       payload.teacherID = sessionStorage.getItem("userID");
     }
@@ -310,6 +327,140 @@ export default function TeacherQuestionBankComponent() {
     setQuestionData({ ...questionData, testCases: updated });
   }
 
+  // -------------------- WebSocket Setup for NEUDev Terminal --------------------
+  useEffect(() => {
+    const ws = new WebSocket("https://neudevcompiler-production.up.railway.app");
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === "stdout") {
+        // Detect error if output contains "Traceback"
+        if ((data.data ?? "").includes("Traceback")) {
+          errorRef.current = true;
+        }
+        handleStdout(data.data ?? "");
+      } 
+      else if (data.type === "stderr") {
+        // Mark that an error occurred
+        errorRef.current = true;
+        finalizeLine(`Error: ${data.data ?? ""}`, false); 
+      } 
+      else if (data.type === "exit") {
+        if (terminalPartialLine || terminalUserInput) {
+          finalizeLine(terminalPartialLine + terminalUserInput, false);
+          setTerminalPartialLine("");
+          setTerminalUserInput("");
+        }
+        finalizeLine("\n\n>>> Program Terminated", true);
+        setCompiling(false);
+        const finalOutput = outputRef.current.trim();
+        // If error is detected or output contains error indicators, prompt via modal
+        if (errorRef.current || finalOutput.includes("Error:") || finalOutput.includes("Traceback")) {
+          setErrorOutput(finalOutput);
+          setShowErrorModal(true);
+        } else {
+          if (finalOutput) {
+            const newTC = {
+              expectedOutput: finalOutput,
+              testCasePoints: ""
+            };
+            setQuestionData(prev => ({
+              ...prev,
+              testCases: [...prev.testCases, newTC]
+            }));
+            setTestCaseAdded(true);
+          }
+        }
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
+  // Handler for stdout from WebSocket
+  function handleStdout(newData) {
+    let buffer = terminalPartialLine + newData;
+    const splitLines = buffer.split("\n");
+    for (let i = 0; i < splitLines.length - 1; i++) {
+      finalizeLine(splitLines[i]);
+    }
+    const lastPiece = splitLines[splitLines.length - 1];
+    if (newData.endsWith("\n")) {
+      if (lastPiece.trim() !== "") {
+        finalizeLine(lastPiece);
+      }
+      setTerminalPartialLine("");
+    } else {
+      setTerminalPartialLine(lastPiece);
+    }
+  }
+  
+  // --------------------
+  // finalizeLine
+  // --------------------
+  // The second parameter "skipOutput" controls whether to store this line in outputRef.
+  function finalizeLine(text, skipOutput = false) {
+    setTerminalLines(prev => [...prev, text]);
+    if (!skipOutput) {
+      outputRef.current += text + "\n";
+    }
+  }
+
+  const handleTerminalClick = () => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      placeCaretAtEnd(inputRef.current);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setTerminalUserInput(e.currentTarget.textContent);
+  };
+
+  // --------------------
+  // handleInputKeyDown
+  // --------------------
+  const handleInputKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "input", data: terminalUserInput }));
+      }
+      setTerminalPartialLine("");
+      setTerminalUserInput("");
+      if (inputRef.current) {
+        inputRef.current.textContent = "";
+      }
+    }
+  };
+
+  const handleCloseTerminal = () => {
+    if (compiling && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "kill" }));
+    }
+    setCompiling(false);
+    setShowTerminalModal(false);
+    setTerminalLines([]);
+    setTerminalPartialLine("");
+    setTerminalUserInput("");
+  };
+
+  // --------------------
+  // handleRunCode
+  // --------------------
   async function handleRunCode() {
     if (!isConsoleApp) return;
     if (!testLangID) {
@@ -334,42 +485,32 @@ export default function TeacherQuestionBankComponent() {
       alert("Please enter some code before running.");
       return;
     }
+
+    // Reset terminal & error flags before run
+    setTerminalLines([]);
+    setTerminalPartialLine("");
+    setTerminalUserInput("");
+    setTestCaseAdded(false);
+    errorRef.current = false;
+    outputRef.current = "";
+
+    setShowTerminalModal(true);
     setCompiling(true);
-    setRawOutput("");
-    try {
-      const response = await fetch("https://neudevcompiler-production.up.railway.app", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code,
+
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(
+        JSON.stringify({
+          type: "init",
           language: shortCode,
-          input: runtimeInput
+          code: code,
+          input: ""
         })
-      });
-      const data = await response.json();
-      console.log("[Compiler Response]", response.status, data);
-      if (!response.ok || data.error) {
-        let errorMsg = data.error || data.stderr || "Something went wrong";
-        setRawOutput(`Error: ${errorMsg}`);
-      } else {
-        const actualOutput = (data.output || "").trim();
-        const finalOutput = actualOutput.length > 0 ? actualOutput : "(No output returned by the compiler)";
-        setRawOutput(finalOutput);
-        const newTC = {
-          inputData: runtimeInput,
-          expectedOutput: finalOutput,
-          testCasePoints: ""
-        };
-        setQuestionData({
-          ...questionData,
-          testCases: [...questionData.testCases, newTC],
-        });
-      }
-    } catch (error) {
-      setRawOutput(`Exception: ${error.message}`);
-    } finally {
+      );
+    } else {
+      finalizeLine("Error: WebSocket not connected.", false);
+      errorRef.current = true;
       setCompiling(false);
-      setShowOutputModal(true);
     }
   }
 
@@ -379,6 +520,31 @@ export default function TeacherQuestionBankComponent() {
     return dateSortOrder === "asc" ? dateA - dateB : dateB - dateA;
   });
 
+  function AutoResizeTextarea({ value, ...props }) {
+    const textareaRef = useRef(null);
+    useEffect(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
+      }
+    }, [value]);
+    return (
+      <Form.Control
+        as="textarea"
+        ref={textareaRef}
+        value={value}
+        rows={1}
+        style={{
+          whiteSpace: "pre-wrap",
+          overflow: "hidden",
+          resize: "none"
+        }}
+        {...props}
+      />
+    );
+  }
+
+  // -------------------- Render --------------------
   return (
     <div className="activity-items">
       <ProfilePlaygroundNavbarComponent />
@@ -400,9 +566,9 @@ export default function TeacherQuestionBankComponent() {
                 testCases: [],
                 questionPoints: 0,
               });
-              setCode("// Write your sample solution here");
-              setRuntimeInput("");
-              setRawOutput("");
+              setTerminalLines([]);
+              setTerminalPartialLine("");
+              setTerminalUserInput("");
               setTestLangID(null);
               setShowCreateModal(true);
             }}
@@ -453,7 +619,7 @@ export default function TeacherQuestionBankComponent() {
               <th>POINTS</th>
               <th>LANGUAGES</th>
               {isConsoleApp && <th>TEST CASES</th>}
-              <th onClick={toggleDateSortOrder} style={{ cursor: "pointer" }}>
+              <th onClick={() => setDateSortOrder(prev => (prev === "desc" ? "asc" : "desc"))} style={{ cursor: "pointer" }}>
                 DATE &amp; TIME CREATED/UPDATED{" "}
                 <FontAwesomeIcon
                   icon={dateSortOrder === "asc" ? faCaretUp : faCaretDown}
@@ -529,15 +695,14 @@ export default function TeacherQuestionBankComponent() {
                             questionDifficulty: q.questionDifficulty,
                             progLangIDs: plIDs,
                             testCases: (q.test_cases || []).map(tc => ({
-                              inputData: tc.inputData,
                               expectedOutput: tc.expectedOutput,
                               testCasePoints: tc.testCasePoints ?? ""
                             })),
                             questionPoints: q.questionPoints || 0
                           });
-                          setCode("// Write your sample solution here");
-                          setRuntimeInput("");
-                          setRawOutput("");
+                          setTerminalLines([]);
+                          setTerminalPartialLine("");
+                          setTerminalUserInput("");
                           setTestLangID(plIDs.length > 0 ? plIDs[0] : null);
                           setShowEditModal(true);
                         }}
@@ -555,7 +720,6 @@ export default function TeacherQuestionBankComponent() {
                             questionDifficulty: q.questionDifficulty,
                             progLangIDs: plIDs,
                             testCases: (q.test_cases || []).map(tc => ({
-                              inputData: tc.inputData,
                               expectedOutput: tc.expectedOutput,
                               testCasePoints: tc.testCasePoints ?? ""
                             })),
@@ -740,18 +904,9 @@ export default function TeacherQuestionBankComponent() {
                         marginBottom: "10px"
                       }}
                     >
-                      <Form.Control
-                        type="text"
-                        placeholder="Input Data"
-                        value={tc.inputData}
+                      <AutoResizeTextarea
                         readOnly
-                        style={{ marginBottom: "5px" }}
-                      />
-                      <Form.Control
-                        type="text"
-                        placeholder="Expected Output"
                         value={tc.expectedOutput}
-                        readOnly
                         style={{ marginBottom: "5px" }}
                       />
                       <Form.Control
@@ -777,22 +932,13 @@ export default function TeacherQuestionBankComponent() {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
-                  <Form.Label>Sample Code (for testing)</Form.Label>
+                  <Form.Label>Code solution: </Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={8}
+                    rows={15}
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Runtime Input (for this run)</Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="Enter input for the code (if you have an input)"
-                    value={runtimeInput}
-                    onChange={(e) => setRuntimeInput(e.target.value)}
+                    placeholder="Write your code solution here"
                   />
                 </Form.Group>
 
@@ -860,25 +1006,87 @@ export default function TeacherQuestionBankComponent() {
         </Modal.Footer>
       </Modal>
 
-      {/* Raw Output Modal */}
+      {/* -------------------- Terminal Modal for NEUDev -------------------- */}
       <Modal
-        show={showOutputModal}
-        onHide={() => setShowOutputModal(false)}
+        show={showTerminalModal}
+        onHide={handleCloseTerminal}
         size="lg"
+        backdrop="static"
+        keyboard={false}
+        centered
+        className="dark-terminal-modal"
       >
+        <Modal.Header closeButton className="dark-terminal-modal-header">
+          <Modal.Title>NEUDev Terminal</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="dark-terminal-modal-body">
+          <div
+            className="terminal"
+            style={{
+              backgroundColor: "#1e1e1e",
+              color: "#fff",
+              padding: "10px",
+              fontFamily: "monospace",
+              minHeight: "250px",
+              overflowY: "auto"
+            }}
+            onClick={handleTerminalClick}
+          >
+            {terminalLines.map((line, idx) => (
+              <div key={idx} style={{ whiteSpace: "pre-wrap" }}>
+                {line}
+              </div>
+            ))}
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              <span>{terminalPartialLine}</span>
+              <span
+                ref={inputRef}
+                contentEditable
+                suppressContentEditableWarning
+                style={{ outline: "none" }}
+                onInput={handleInputChange}
+                onKeyDown={handleInputKeyDown}
+              />
+            </div>
+          </div>
+        </Modal.Body>
+      </Modal>
+
+      {/* -------------------- Error Modal: Prompt to Add Error as Test Case -------------------- */}
+      <Modal show={showErrorModal} onHide={() => setShowErrorModal(false)} centered>
         <Modal.Header closeButton>
-          <Modal.Title>Code Output</Modal.Title>
+          <Modal.Title>Compilation Error</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {rawOutput ? (
-            <pre style={{ whiteSpace: "pre-wrap" }}>{rawOutput}</pre>
-          ) : (
-            <p>No raw output available.</p>
-          )}
+          <p>The code encountered an error during execution:</p>
+          <pre style={{
+            backgroundColor: '#f8d7da',
+            padding: '10px',
+            borderRadius: '5px',
+            maxHeight: '200px',
+            overflowY: 'auto'
+          }}>
+            {errorOutput}
+          </pre>
+          <p>Do you want to add this error output as a test case?</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowOutputModal(false)}>
-            Close
+          <Button variant="secondary" onClick={() => setShowErrorModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={() => {
+            const newTC = {
+              expectedOutput: errorOutput,
+              testCasePoints: ""
+            };
+            setQuestionData(prev => ({
+              ...prev,
+              testCases: [...prev.testCases, newTC]
+            }));
+            setTestCaseAdded(true);
+            setShowErrorModal(false);
+          }}>
+            Add as Test Case
           </Button>
         </Modal.Footer>
       </Modal>
