@@ -414,7 +414,35 @@ async function createClass(classData) {
 
 
 async function deleteClass(classID) {
-    return await safeFetch(`${API_LINK}/teacher/class/${classID}`, { method: "DELETE" });
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/class/${classID}`, {
+        method: "DELETE",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+        }
+    });
+}
+
+
+async function updateClass(classID, updatedData) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/class/${classID}`, {
+        method: "PUT",
+        headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        },
+        body: JSON.stringify({
+            className: updatedData.className.trim(),
+            classSection: updatedData.classSection.trim()
+        })
+    });
 }
 
 //////////////////////////////////////////
@@ -749,5 +777,6 @@ export {
     createQuestion,
     updateQuestion,
     deleteQuestion,
-    getProgrammingLanguages
+    getProgrammingLanguages,
+    updateClass,
 };
