@@ -364,6 +364,9 @@ async function getStudentClasses() {
     });
 }
 
+
+
+
 //////////////////////////////////////////
 // CLASS FUNCTIONS (TEACHERS)
 //////////////////////////////////////////
@@ -445,6 +448,16 @@ async function updateClass(classID, updatedData) {
     });
 }
 
+async function getClassInfo(classID) {
+    const token = sessionStorage.getItem("access_token");
+    if (!token) return { error: "Unauthorized access: No token found" };
+
+    return await safeFetch(`${API_LINK}/teacher/class-info/${classID}`, {
+      method: "GET",
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+}
+  
 //////////////////////////////////////////
 // ACTIVITY FUNCTIONS
 //////////////////////////////////////////
@@ -763,6 +776,7 @@ export {
     editActivity,
     deleteActivity,
     getClassActivities, 
+    getClassInfo,
     getQuestions,
     getItemTypes,
     getActivityDetails,

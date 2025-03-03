@@ -45,16 +45,18 @@ body {
 .create-new-activity-wrapper {
     background-color: #CCCFDA; /* Space between navbar and button */
     height: 20px; /* Adjust height to create space */
+    align-items: center;
 }
 
 .create-new-activity-container {
     display: flex;
-    justify-content: center;
-    align-items: center;
+    justify-content: space-between; /* key change */
+    align-items: center;           /* keep center alignment vertically */
     background-color: #FFF5F1; 
-    padding: 10px 0px;
+    padding: 10px 20px;            /* add some horizontal padding */
 }
-  
+
+
   /* Button Styling */
   .create-new-activity-button {
     background-color: #64c5b1; /* Soft teal button */

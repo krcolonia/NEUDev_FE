@@ -5,6 +5,7 @@ import TeacherCMNavigationBarComponent from './TeacherCMNavigationBarComponent';
 import "../../style/teacher/cmActivities.css"; 
 import { 
   getClassActivities, 
+  getClassInfo, // Updated: import getClassInfo instead of getClass
   editActivity, 
   deleteActivity, 
   getQuestions, 
@@ -74,6 +75,9 @@ export const TeacherClassManagementComponent = () => {
   const navigate = useNavigate();
   const { classID } = useParams();
 
+  // NEW: State for storing dynamic class info
+  const [classInfo, setClassInfo] = useState(null);
+
   // -------------------- Activity States --------------------
   const [contentKey, setContentKey] = useState('ongoing');
   const [ongoingActivities, setOngoingActivities] = useState([]);
@@ -123,6 +127,19 @@ export const TeacherClassManagementComponent = () => {
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeletePassword, setShowDeletePassword] = useState(false);
 
+  // -------------------- FETCH CLASS INFO --------------------
+  useEffect(() => {
+    async function fetchClassInfo() {
+      const response = await getClassInfo(classID);
+      if (!response.error) {
+        setClassInfo(response);
+      } else {
+        console.error("❌ Failed to fetch class info:", response.error);
+      }
+    }
+    fetchClassInfo();
+  }, [classID]);
+
   // -------------------- REFRESH ACTIVITIES --------------------
   useEffect(() => {
     fetchActivities();
@@ -145,12 +162,12 @@ export const TeacherClassManagementComponent = () => {
   // -------------------- API Fetching --------------------
   const fetchActivities = async () => {
     try {
-      const classID = sessionStorage.getItem("selectedClassID");
-      if (!classID) {
+      const storedClassID = sessionStorage.getItem("selectedClassID");
+      if (!storedClassID) {
         console.error("❌ No class ID found in session storage.");
         return;
       }
-      const response = await getClassActivities(classID);
+      const response = await getClassActivities(storedClassID);
       console.log("🟢 API Response:", response);
       if (!response.error) {
         setUpcomingActivities(response.upcoming);
@@ -534,15 +551,22 @@ export const TeacherClassManagementComponent = () => {
       <TeacherCMNavigationBarComponent />
       <div className="create-new-activity-wrapper"></div>
       <div className="create-new-activity-container">
+        {/* Dynamic header using fetched classInfo */}
+        <h2>
+          {classInfo 
+            ? `${classInfo.className} (${classInfo.classID})` 
+            : "Loading class..."}
+        </h2>
+        
         <button
           className="create-new-activity-button"
           onClick={() => {
-            const classID = sessionStorage.getItem("selectedClassID");
-            if (!classID) {
+            const storedClassID = sessionStorage.getItem("selectedClassID");
+            if (!storedClassID) {
               alert("⚠️ No class selected!");
               return;
             }
-            navigate(`/teacher/class/${classID}/create-activity`);
+            navigate(`/teacher/class/${storedClassID}/create-activity`);
           }}
         >
           + Create New Activity
@@ -1010,7 +1034,7 @@ export const TeacherClassManagementComponent = () => {
               <Form.Label>Activity Duration (in minutes)</Form.Label>
               <Form.Control
                 type="number"
-                min="1"  // Enforces duration > 0 minutes
+                min="1"
                 value={editFormData.actDuration || ""}
                 onChange={(e) => setEditFormData({ ...editFormData, actDuration: e.target.value })}
                 required
