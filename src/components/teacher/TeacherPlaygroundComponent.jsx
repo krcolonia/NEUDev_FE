@@ -164,7 +164,8 @@ export const TeacherPlaygroundComponent = () => {
 
   // WebSocket Setup – assume backend is in canonical mode
   useEffect(() => {
-    const ws = new WebSocket('https://neudevcompiler-production.up.railway.app');
+    // const ws = new WebSocket('https://neudevcompiler-production.up.railway.app');
+    const ws = new WebSocket('https://neudevcompiler-production-9d9c.up.railway.app');
     wsRef.current = ws;
     ws.onopen = () => {
       console.log('WebSocket connected');
